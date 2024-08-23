@@ -19,7 +19,7 @@ def call_loss(loss_fn, terms):
     args = {k: v for k, v in terms.items() if k in sig.parameters}
 
     loss_terms = jax.vmap(loss_fn)(**args)
-    loss_terms = jax.tree_map(jnp.mean, loss_terms)
+    loss_terms = jax.tree.map(jnp.mean, loss_terms)
     if isinstance(loss_terms, dict):
         total_loss = sum(loss_terms.values())
     else:
