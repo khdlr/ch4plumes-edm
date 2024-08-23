@@ -21,9 +21,7 @@ from lib.utils import TrainingState, prep, changed_state, save_state
 from evaluate import test_step, METRICS
 
 jax.config.update("jax_numpy_rank_promotion", "raise")
-
-
-PATIENCE = 100
+wandb.require("core")
 
 
 def get_optimizer():
