@@ -40,11 +40,11 @@ def train_step(batch, state, key, net):
     _, optimizer = get_optimizer()
 
     aug_key, model_key = jax.random.split(key)
-    img, mask, contour = prep(batch, aug_key, augment=True)
+    img, contour = prep(batch, aug_key, augment=True)
 
     def calculate_loss(params):
         terms, buffers = net(params, state.buffers, model_key, img, is_training=True)
-        terms = {**terms, "mask": mask, "contour": contour}
+        terms = {**terms, "contour": contour}
         loss, loss_terms = losses.call_loss(loss_fn, terms)
 
         return loss, (buffers, terms, loss_terms)
@@ -57,7 +57,6 @@ def train_step(batch, state, key, net):
 
     terms = {
         **terms,
-        "mask": mask,
         "contour": contour,
         "imagery": img,
     }
@@ -101,11 +100,12 @@ if __name__ == "__main__":
     # initialize data loading
     train_key, subkey = jax.random.split(train_key)
     B = config["batch_size"]
-    train_loader = get_loader(B, 4, "train", config, subkey)
-    val_loader = get_loader(4, 1, "validation", config, None, subtiles=False)
+    train_loader = get_loader(B, "train")
+    val_loader = get_loader(4, "val")
 
-    img, *_ = prep(next(iter(train_loader)))
-    S, params, buffers = models.get_model(config, img)
+    batch = next(iter(train_loader))
+    imgs, _ = prep((batch['image'], batch['contour']))
+    S, params, buffers = models.get_model(config, imgs)
 
     # Initialize model and optimizer state
     opt_init, _ = get_optimizer()
@@ -114,7 +114,7 @@ if __name__ == "__main__":
 
     running_min = np.inf
     last_improvement = 0
-    wandb.init(project=f'Deep Snake {config["dataset"]}', config=config)
+    wandb.init(project=f'COBRA Zakynthos', config=config)
 
     run_dir = Path(f"runs/{wandb.run.id}/")
     run_dir.mkdir(parents=True)
@@ -129,6 +129,7 @@ if __name__ == "__main__":
         loss_ary = None
         for step, batch in enumerate(prog, 1):
             train_key, subkey = jax.random.split(train_key)
+            batch = (batch['image'], batch['contour'])
             metrics, terms, state = train_step(batch, state, subkey, net)
 
             for m in metrics:
@@ -149,7 +150,8 @@ if __name__ == "__main__":
         val_metrics = {}
         for step, batch in enumerate(val_loader):
             val_key, subkey = jax.random.split(val_key)
-            metrics, out = test_step(batch, state, subkey, net)
+            samples = (batch['image'], batch['contour'])
+            metrics, out = test_step(samples, state, subkey, net)
 
             for m in metrics:
                 if m not in val_metrics:
@@ -157,12 +159,7 @@ if __name__ == "__main__":
                 val_metrics[m].append(metrics[m])
 
             out = jax.tree.map(lambda x: x[0], out)  # Select first example from batch
-            logging.log_anim(out, f"Animated/{step}", epoch)
-            if "segmentation" in out:
-                logging.log_segmentation(out, f"Segmentation/{step}", epoch)
-            if "offsets" in out:
-                logging.log_offset_field(out, f"Offsets/{step}", epoch)
-            if "edge" in out:
-                logging.log_edge(out, f"Edge/{step}", epoch)
-
+            filename = batch['filename'][0].decode('utf8').removesuffix('.tif')
+            name = f"{batch['year'][0]}_{filename}"
+            logging.log_anim(out, f"Animated/{name}", epoch)
         logging.log_metrics(val_metrics, "val", epoch)

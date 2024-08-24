@@ -30,47 +30,13 @@ def log_metrics(metrics, prefix, epoch, do_print=True, do_wandb=True):
 
 
 def get_rgb(data):
-    img = data["imagery"]
-    if img.shape[-1] == 1:
-        rgb = np.concatenate([img] * 3, axis=-1)
-    elif img.shape[-1] == 10:
-        rgb = img[..., 3:0:-1]
+    rgb = data["imagery"]
+    if rgb.shape[-1] == 1:
+      rgb = np.concatenate([rgb] * 3, axis=-1)
+    elif rgb.shape[-1] == 10:
+      rgb = rgb[..., 3:0:-1]
     rgb = np.clip(255 * rgb, 0, 255).astype(np.uint8)
     return rgb
-
-
-def log_segmentation(data, tag, step):
-    H, W, C = data["imagery"].shape
-
-    fig, axs = plt.subplots(1, 3, figsize=(10, 3))
-    for ax in axs:
-        ax.axis("off")
-    axs[0].imshow(get_rgb(data))
-    axs[1].imshow(
-        np.asarray(data["segmentation"][:, :, 0]), cmap="gray", vmin=-1, vmax=1
-    )
-    axs[2].imshow(np.asarray(data["mask"]), cmap="gray", vmin=0, vmax=1)
-
-    wandb.log({tag: wandb.Image(fig)}, step=step)
-    plt.close(fig)
-
-
-def log_edge(data, tag, step):
-    H, W, C = data["imagery"].shape
-    mask = data["mask"]
-    true_edge = hk.max_pool(mask, [3, 3], [1, 1], "SAME") != min_pool(
-        mask, [3, 3], [1, 1], "SAME"
-    )
-
-    fig, axs = plt.subplots(1, 3, figsize=(10, 3))
-    for ax in axs:
-        ax.axis("off")
-    axs[0].imshow(get_rgb(data))
-    axs[1].imshow(np.asarray(data["edge"][:, :, 0]), cmap="binary", vmin=0, vmax=1)
-    axs[2].imshow(np.asarray(true_edge), cmap="binary", vmin=0, vmax=1)
-
-    wandb.log({tag: wandb.Image(fig)}, step=step)
-    plt.close(fig)
 
 
 def log_anim(data, tag, step):
@@ -93,8 +59,8 @@ def log_anim(data, tag, step):
     <html>
     <meta charset = "UTF-8">
     <body>
-      <svg xmlns="http://www.w3.org/2000/svg" height="100%" viewBox="0 0 256 256">
-        <image href="data:image/jpeg;charset=utf-8;base64,{imgbase64}" width="256px" height="256px"/>
+      <svg xmlns="http://www.w3.org/2000/svg" height="100%" viewBox="0 0 {W} {H}">
+        <image href="data:image/jpeg;charset=utf-8;base64,{imgbase64}" width="{W}px" height="{H}px"/>
         <path fill="none" stroke="rgb(0, 0, 255)" stroke-width="3"
             d="{gtpath}" />
         </path>
@@ -119,42 +85,6 @@ def animated_path(paths):
           </path>
           """
 
-
-def log_offset_field(data, tag, step):
-    img = data["imagery"]
-    offsets = data["offsets"]
-    mask = data["mask"]
-    contour = data["contour"]
-    true_offsets = jump_flood(mask)
-
-    offsets = jax.image.resize(offsets, [16, 16, 2], "nearest")
-    true_offsets = jax.image.resize(true_offsets, [16, 16, 2], "nearest")
-
-    fig, ax = plt.subplots(figsize=(7, 7))
-    ax.axis("off")
-    ax.imshow(get_rgb(data))
-
-    H, W, C = img.shape
-
-    ry = np.linspace(0, 1, true_offsets.shape[0]) * (H - 1)
-    rx = np.linspace(0, 1, true_offsets.shape[1]) * (W - 1)
-    x, y = np.meshgrid(rx, ry)
-    true_dy = true_offsets[..., 0]
-    true_dx = true_offsets[..., 1]
-    ax.quiver(x, y, true_dx, true_dy, scale=1, scale_units="xy", angles="xy", color="b")
-
-    ry = np.linspace(0, 1, offsets.shape[0]) * (H - 1)
-    rx = np.linspace(0, 1, offsets.shape[1]) * (W - 1)
-    x, y = np.meshgrid(rx, ry)
-    dy = offsets[..., 0] * H / 2
-    dx = offsets[..., 1] * H / 2
-    ax.quiver(x, y, dx, dy, scale=1, scale_units="xy", angles="xy", color="red")
-
-    cy, cx = data["contour"].T
-    ax.plot(cx, cy, c="b")
-
-    wandb.log({tag: wandb.Image(fig)}, step=step)
-    plt.close(fig)
 
 
 def draw_snake(draw, snake, dashed=False, **kwargs):

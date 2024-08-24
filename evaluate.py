@@ -29,7 +29,7 @@ METRICS = dict(
 
 @partial(jax.jit, static_argnums=3)
 def test_step(batch, state, key, net):
-    imagery, mask, contour = prep(batch)
+    imagery, contour = prep(batch)
 
     terms, _ = net(state.params, state.buffers, key, imagery, is_training=False)
 
@@ -37,7 +37,6 @@ def test_step(batch, state, key, net):
         **terms,
         "imagery": imagery,
         "contour": contour,
-        "mask": mask,
     }
 
     if "snake" not in terms:

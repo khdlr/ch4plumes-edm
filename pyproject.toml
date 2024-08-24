@@ -6,7 +6,7 @@ authors = [
     { name = "Konrad Heidler", email = "k.heidler@tum.de" }
 ]
 dependencies = [
-    "numpy>=2.1.0",
+    "numpy>=1.0.0",
     "wandb>=0.17.7",
     "pyyaml>=6.0.2",
     "jax[cuda12_pip]>=0.4.31",
@@ -15,10 +15,12 @@ dependencies = [
     "einops>=0.8.0",
     "matplotlib>=3.9.2",
     "dm-haiku>=0.0.12",
-    "torch>=2.4.0",
     "scikit-image>=0.24.0",
-    "tqdm>=4.66.5",
-    "pillow>=10.4.0",
+    "tqdm>=4.0.0",
+    "pillow>=9.0.0",
+    "torch==2.4.0+cpu",
+    "tensorflow-datasets>=4.9.6",
+    "tensorflow[cpu]>=2.17.0",
 ]
 readme = "README.md"
 requires-python = ">= 3.8"
@@ -44,3 +46,7 @@ name = "jax"
 # url = "https://jorenham.github.io/jax_pep503/"
 url = "https://storage.googleapis.com/jax-releases/jax_cuda_releases.html"
 type = "find-links"  # this is implied
+
+[[tool.rye.sources]]
+name = "pytorch"
+url = "https://download.pytorch.org/whl/cpu"
