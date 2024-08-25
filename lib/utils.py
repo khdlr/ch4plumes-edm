@@ -48,17 +48,16 @@ def prep(batch, key=None, augment=False, input_types=None):
             augmax.VerticalFlip(),
             augmax.Rotate90(),
             augmax.Rotate(15),
-            augmax.Warp(coarseness=16)
-            augmax.Warp(coarseness=16)
+            augmax.Warp(coarseness=64, strength=8),
+            augmax.Warp(coarseness=32, strength=4),
         ]
     ops += [augmax.ByteToFloat()]
     if augment: ops += [
-    #     augmax.ChannelShuffle(p=0.1),
         augmax.Solarization(p=0.1),
         augmax.ColorJitter(),
-        # augmax.RandomChannelGamma(p=0.5, range=(0.5, 2.0)),
-        # augmax.RandomBrightness(p=0.5),
-        # augmax.RandomContrast(p=0.5),
+        augmax.RandomChannelGamma(p=0.5, range=(0.5, 2.0)),
+        augmax.RandomBrightness(p=0.5),
+        augmax.RandomContrast(p=0.5),
         augmax.RandomGrayscale(p=0.1),
         augmax.GaussianBlur(sigma=2)
     ]
