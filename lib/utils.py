@@ -55,10 +55,10 @@ def prep(batch, key=None, augment=False, input_types=None):
     if augment: ops += [
         augmax.Solarization(p=0.1),
         augmax.ColorJitter(),
-        augmax.RandomChannelGamma(p=0.5, range=(0.5, 2.0)),
+        # augmax.RandomChannelGamma(p=0.5, range=(0.5, 2.0)),
         augmax.RandomBrightness(p=0.5),
         augmax.RandomContrast(p=0.5),
-        augmax.RandomGrayscale(p=0.1),
+        augmax.RandomGrayscale(p=0.2),
         augmax.GaussianBlur(sigma=2)
     ]
 

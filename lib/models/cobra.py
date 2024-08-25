@@ -1,6 +1,7 @@
 import jax
 import jax.numpy as jnp
 import haiku as hk
+from functools import partial
 
 from . import backbones
 from . import nnutils as nn
@@ -36,7 +37,10 @@ class COBRA:
         if is_training:
             feature_maps = [nn.channel_dropout(f, 0.5) for f in feature_maps]
 
-        vertices = jnp.zeros([imagery.shape[0], self.vertices, 2])
+        init_keys = jax.random.split(hk.next_rng_key(), imagery.shape[0])
+        init_fn = partial(snake_utils.random_bezier, vertices=self.vertices)
+        vertices = jax.vmap(init_fn)(init_keys)
+        # vertices = jnp.zeros([imagery.shape[0], self.vertices, 2])
         steps = [vertices]
 
         if self.weight_sharing:
