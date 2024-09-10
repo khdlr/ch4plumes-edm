@@ -65,6 +65,7 @@ def prep(batch, key=None, augment=False, input_types=None):
     if input_types is None:
         input_types = (
             augmax.InputType.IMAGE,
+            augmax.InputType.DENSE,
             augmax.InputType.CONTOUR,
           )
     chain = augmax.Chain(*ops, input_types=input_types)
@@ -73,9 +74,12 @@ def prep(batch, key=None, augment=False, input_types=None):
     subkeys = jax.random.split(key, batch[0].shape[0])
     transformation = jax.vmap(chain)
     outputs = list(transformation(subkeys, batch))
-    for i, typ in enumerate(input_types):
-        if typ == augmax.InputType.CONTOUR:
-            outputs[i] = 2 * (outputs[i] / outputs[0].shape[1]) - 1.0
+    outputs = [
+        # Stack img and dem
+        jnp.concatenate([outputs[0], outputs[1]], axis=-1),
+        # Normalize contour
+        2 * (outputs[2] / outputs[0].shape[1]) - 1.0
+    ]
 
     return outputs
 

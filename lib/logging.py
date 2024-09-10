@@ -35,6 +35,8 @@ def get_rgb(data):
       rgb = np.concatenate([rgb] * 3, axis=-1)
     elif rgb.shape[-1] == 10:
       rgb = rgb[..., 3:0:-1]
+    elif rgb.shape[-1] == 4:
+      rgb = rgb[..., :3]
     rgb = np.clip(255 * rgb, 0, 255).astype(np.uint8)
     return rgb
 

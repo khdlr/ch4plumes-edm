@@ -104,7 +104,7 @@ if __name__ == "__main__":
     val_loader = get_loader(4, "val")
 
     batch = next(iter(train_loader))
-    imgs, _ = prep((batch['image'], batch['contour']))
+    imgs, _ = prep((batch['image'], batch['dem'], batch['contour']))
     S, params, buffers = models.get_model(config, imgs)
 
     # Initialize model and optimizer state
@@ -129,7 +129,7 @@ if __name__ == "__main__":
         loss_ary = None
         for step, batch in enumerate(prog, 1):
             train_key, subkey = jax.random.split(train_key)
-            batch = (batch['image'], batch['contour'])
+            batch = (batch['image'], batch['dem'], batch['contour'])
             metrics, terms, state = train_step(batch, state, subkey, net)
 
             for m in metrics:
@@ -150,7 +150,7 @@ if __name__ == "__main__":
         val_metrics = {}
         for step, batch in enumerate(val_loader):
             val_key, subkey = jax.random.split(val_key)
-            samples = (batch['image'], batch['contour'])
+            samples = (batch['image'], batch['dem'], batch['contour'])
             metrics, out = test_step(samples, state, subkey, net)
 
             for m in metrics:
