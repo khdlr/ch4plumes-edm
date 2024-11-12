@@ -32,7 +32,6 @@ def log_metrics(metrics, prefix, epoch, do_print=True, do_wandb=True):
 def get_rgb(data):
     rgb = data["imagery"]
     if rgb.ndim == 4:
-      print('MCD sample data detected, taking 1st rgb image.')
       rgb = rgb[0]
     if rgb.shape[-1] == 1:
       rgb = np.concatenate([rgb] * 3, axis=-1)
@@ -89,7 +88,7 @@ def log_anim_multi(data, tag, step):
     truth = data["contour"][0]
     gtpath = make_path_string(truth)
 
-    pred_html = ''
+    path_html = ''
     for prediction in data['snake_steps']:
       pred = list(prediction)
       pred = pred + [pred[-1], pred[-1]]
@@ -121,7 +120,7 @@ def make_path_string(vertices):
 def animated_path(paths, width=1):
     pathvalues = ";".join(make_path_string(path) for path in paths)
     keytimes = ";".join(f"{x:.2f}" for x in np.linspace(0, 1, len(paths)))
-    return f"""<path fill="none" stroke="rgb(255, 0, 0)" stroke-width="{stroke-width}">
+    return f"""<path fill="none" stroke="rgb(255, 0, 0)" stroke-width="{width}">
           <animate attributeName="d" values="{pathvalues}" keyTimes="{keytimes}" dur="3s" repeatCount="indefinite" />
           </path>
           """

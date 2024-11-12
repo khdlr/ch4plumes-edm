@@ -1,7 +1,6 @@
 import jax
 import jax.numpy as jnp
 from jax.scipy.special import logsumexp
-from jax.experimental.host_callback import id_print
 import haiku as hk
 import optax
 
