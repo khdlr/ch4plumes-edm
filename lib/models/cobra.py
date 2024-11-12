@@ -30,12 +30,12 @@ class COBRA:
         self.weight_sharing = weight_sharing
         self.head = head
 
-    def __call__(self, imagery, is_training=False):
+    def __call__(self, imagery, is_training=False, dropout_rate=0.0):
         backbone = self.backbone()
-        feature_maps = backbone(imagery, is_training)
+        feature_maps = backbone(imagery, is_training, dropout_rate=dropout_rate)
 
         if is_training:
-            feature_maps = [nn.channel_dropout(f, 0.5) for f in feature_maps]
+          feature_maps = [nn.channel_dropout(f, dropout_rate) for f in feature_maps]
 
         init_keys = jax.random.split(hk.next_rng_key(), imagery.shape[0])
         init_fn = partial(snake_utils.random_bezier, vertices=self.vertices)

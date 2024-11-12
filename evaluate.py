@@ -56,6 +56,36 @@ def test_step(batch, state, key, net):
     return metrics, terms
 
 
+@partial(jax.jit, static_argnums=3)
+def test_step_mcd(batch, state, key, net, dropout_rate):
+    imagery, contour = prep(batch)
+
+    terms, _ = net(state.params, state.buffers, key, imagery, is_training=False)
+
+    terms = {
+        **terms,
+        "imagery": imagery,
+        "contour": contour,
+    }
+
+    if "snake" not in terms:
+        terms["snake"] = utils.snakify(terms["segmentation"], contour.shape[-2])
+    if "snake_steps" not in terms:
+        terms["snake_steps"] = [terms["snake"]]
+
+    # Convert from normalized to to pixel coordinates
+    scale = imagery.shape[1] / 2
+    for key in ["snake", "snake_steps", "contour"]:
+        terms[key] = jax.tree.map(lambda x: scale * (1.0 + x), terms[key])
+
+    metrics = {}
+    for m in METRICS:
+        metrics[m] = losses.call_loss(METRICS[m], terms)[0]
+
+    return metrics, terms
+
+
+
 if __name__ == "__main__":
     run = Path(sys.argv[1])
     assert run.exists()

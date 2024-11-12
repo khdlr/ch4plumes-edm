@@ -18,7 +18,7 @@ import augmax
 
 from lib import utils, losses, logging, models
 from lib.utils import TrainingState, prep, changed_state, save_state
-from evaluate import test_step, METRICS
+from evaluate import test_step, test_step_mcd, METRICS
 
 jax.config.update("jax_numpy_rank_promotion", "raise")
 wandb.require("core")
@@ -43,7 +43,7 @@ def train_step(batch, state, key, net):
     img, contour = prep(batch, aug_key, augment=True)
 
     def calculate_loss(params):
-        terms, buffers = net(params, state.buffers, model_key, img, is_training=True)
+        terms, buffers = net(params, state.buffers, model_key, img, is_training=True, dropout_rate=0.5)
         terms = {**terms, "contour": contour}
         loss, loss_terms = losses.call_loss(loss_fn, terms)
 
@@ -151,7 +151,7 @@ if __name__ == "__main__":
         for step, batch in enumerate(val_loader):
             val_key, subkey = jax.random.split(val_key)
             samples = (batch['image'], batch['dem'], batch['contour'])
-            metrics, out = test_step(samples, state, subkey, net)
+            metrics, out = test_step_mcd(samples, state, subkey, net, dropout_rate=0.5)
 
             for m in metrics:
                 if m not in val_metrics:

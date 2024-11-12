@@ -10,26 +10,38 @@ from .. import nnutils as nn
 class Xception(hk.Module):
     """Xception backbone like the one used in CALFIN"""
 
-    def __call__(self, x, is_training=False):
+    def __call__(self, x, is_training=False, dropout_rate=0.0):
         B, H, W, C = x.shape
 
         # Backbone
         x, skip1 = XceptionBlock([128, 128, 128], stride=2, return_skip=True)(
             x, is_training
         )
+        x = nn.channel_dropout(x, dropout_rate)
+        skip1 = nn.channel_dropout(skip1, dropout_rate)
+
         x, skip2 = XceptionBlock([256, 256, 256], stride=2, return_skip=True)(
             x, is_training
         )
+        x = nn.channel_dropout(x, dropout_rate)
+        skip1 = nn.channel_dropout(skip1, dropout_rate)
+
         x, skip3 = XceptionBlock([768, 768, 768], stride=2, return_skip=True)(
             x, is_training
         )
+        x = nn.channel_dropout(x, dropout_rate)
+        skip1 = nn.channel_dropout(skip1, dropout_rate)
+
         for i in range(8):
             x = XceptionBlock([768, 768, 768], skip_type="sum", stride=1)(
                 x, is_training
             )
+            x = nn.channel_dropout(x, dropout_rate)
 
         x = XceptionBlock([728, 1024, 1024], stride=2)(x, is_training)
+        x = nn.channel_dropout(x, dropout_rate)
         x = XceptionBlock([1536, 1536, 2048], stride=1, rate=(1, 2, 4))(x, is_training)
+        x = nn.channel_dropout(x, dropout_rate)
 
         # ASPP
         # Image Feature branch
@@ -44,9 +56,12 @@ class Xception(hk.Module):
         b4 = nn.SepConvBN(256, rate=4)(x, is_training)
         b5 = nn.SepConvBN(256, rate=5)(x, is_training)
         x = jnp.concatenate([bD, b0, b1, b2, b3, b4, b5], axis=-1)
+        x = nn.channel_dropout(x, dropout_rate)
 
         x = nn.ConvBNAct(512, 1, act="elu")(x, is_training)
+        x = nn.channel_dropout(x, dropout_rate)
         skip3 = nn.ConvBNAct(64, 1, act="elu")(skip3, is_training)
+        skip3 = nn.channel_dropout(skip3, dropout_rate)
 
         return [skip3, x]
 
