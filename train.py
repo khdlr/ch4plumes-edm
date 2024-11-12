@@ -149,11 +149,11 @@ if __name__ == "__main__":
         val_key = persistent_val_key
         val_metrics = {}
         for step, batch in enumerate(val_loader):
-            val_key, subkey = jax.random.split(val_key)
+            val_key, *subkeys = jax.random.split(val_key, 6)
             samples = (batch['image'], batch['dem'], batch['contour'])
 
             predictions = []
-            for _ in range(5):
+            for subkey in subkeys:
               metrics, out = test_step_mcd(samples, state, subkey, net, dropout_rate=0.5)
               predictions.append(out)
             out = {k: np.stack([p[k] for p in predictions], axis=1) for k in predictions[0]}
