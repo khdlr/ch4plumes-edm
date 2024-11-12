@@ -92,7 +92,7 @@ def log_anim_multi(data, tag, step):
     for prediction in data['snake_steps']:
       pred = list(prediction)
       pred = pred + [pred[-1], pred[-1]]
-      path_html += animated_path(pred, width=0.5)
+      path_html += animated_path(pred, width=1)
 
     html = f"""
     <!DOCTYPE html>
