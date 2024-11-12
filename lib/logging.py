@@ -31,6 +31,9 @@ def log_metrics(metrics, prefix, epoch, do_print=True, do_wandb=True):
 
 def get_rgb(data):
     rgb = data["imagery"]
+    if rgb.ndim == 4:
+      print('MCD sample data detected, taking 1st rgb image.')
+      rgb = rgb[0]
     if rgb.shape[-1] == 1:
       rgb = np.concatenate([rgb] * 3, axis=-1)
     elif rgb.shape[-1] == 10:
@@ -75,18 +78,53 @@ def log_anim(data, tag, step):
     wandb.log({tag: wandb.Html(html, inject=False)}, step=step)
 
 
+def log_anim_multi(data, tag, step):
+    img = get_rgb(data)
+    H, W, C = img.shape
+    img = Image.fromarray(np.asarray(img))
+    buffer = BytesIO()
+    img.save(buffer, format="JPEG")
+    imgbase64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
+
+    truth = data["contour"][0]
+    gtpath = make_path_string(truth)
+
+    pred_html = ''
+    for prediction in data['snake_steps']:
+      pred = list(prediction)
+      pred = pred + [pred[-1], pred[-1]]
+      path_html += animated_path(pred, width=0.5)
+
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <meta charset = "UTF-8">
+    <body>
+      <svg xmlns="http://www.w3.org/2000/svg" height="100%" viewBox="0 0 {W} {H}">
+        <image href="data:image/jpeg;charset=utf-8;base64,{imgbase64}" width="{W}px" height="{H}px"/>
+        <path fill="none" stroke="rgb(0, 0, 255)" stroke-width="3"
+            d="{gtpath}" />
+        </path>
+        {path_html}
+      </svg>
+    </body>
+    </html>
+    """
+
+    wandb.log({tag: wandb.Html(html, inject=False)}, step=step)
+
+
 def make_path_string(vertices):
     return "M" + " L".join(f"{x:.2f},{y:.2f}" for y, x in vertices)
 
 
-def animated_path(paths):
+def animated_path(paths, width=1):
     pathvalues = ";".join(make_path_string(path) for path in paths)
     keytimes = ";".join(f"{x:.2f}" for x in np.linspace(0, 1, len(paths)))
-    return f"""<path fill="none" stroke="rgb(255, 0, 0)" stroke-width="1">
+    return f"""<path fill="none" stroke="rgb(255, 0, 0)" stroke-width="{stroke-width}">
           <animate attributeName="d" values="{pathvalues}" keyTimes="{keytimes}" dur="3s" repeatCount="indefinite" />
           </path>
           """
-
 
 
 def draw_snake(draw, snake, dashed=False, **kwargs):

@@ -151,7 +151,12 @@ if __name__ == "__main__":
         for step, batch in enumerate(val_loader):
             val_key, subkey = jax.random.split(val_key)
             samples = (batch['image'], batch['dem'], batch['contour'])
-            metrics, out = test_step_mcd(samples, state, subkey, net, dropout_rate=0.5)
+
+            predictions = []
+            for _ in range(5):
+              metrics, out = test_step_mcd(samples, state, subkey, net, dropout_rate=0.5)
+              predictions.append(out)
+            out = {k: np.stack([p[k] for p in predictions], axis=1) for k in predictions[0]}
 
             for m in metrics:
                 if m not in val_metrics:
@@ -161,5 +166,5 @@ if __name__ == "__main__":
             out = jax.tree.map(lambda x: x[0], out)  # Select first example from batch
             filename = batch['filename'][0].decode('utf8').removesuffix('.tif')
             name = f"{batch['year'][0]}_{filename}"
-            logging.log_anim(out, f"Animated/{name}", epoch)
+            logging.log_anim_multi(out, f"Animated/{name}", epoch)
         logging.log_metrics(val_metrics, "val", epoch)
