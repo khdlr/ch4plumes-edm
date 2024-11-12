@@ -155,15 +155,14 @@ if __name__ == "__main__":
             predictions = []
             for subkey in subkeys:
               metrics, out = test_step_mcd(samples, state, subkey, net, dropout_rate=0.5)
-              predictions.append(out)
-            out = {k: np.stack([p[k] for p in predictions], axis=1) for k in predictions[0]}
+              predictions.append(jax.tree.map(lambda x: x[0], out))
+            out = {k: np.stack([p[k] for p in predictions]) for k in predictions[0]}
 
             for m in metrics:
                 if m not in val_metrics:
                     val_metrics[m] = []
                 val_metrics[m].append(metrics[m])
 
-            out = jax.tree.map(lambda x: x[0], out)  # Select first example from batch
             filename = batch['filename'][0].decode('utf8').removesuffix('.tif')
             name = f"{batch['year'][0]}_{filename}"
             logging.log_anim_multi(out, f"Animated/{name}", epoch)
