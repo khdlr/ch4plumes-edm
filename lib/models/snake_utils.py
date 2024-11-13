@@ -41,28 +41,18 @@ class SnakeHead(hk.Module):
         self.channels = channels
         self.coord_features = coord_features
 
-    def __call__(self, vertices, feature_maps):
+    def __call__(self, vertices, feature_maps, *, dropout_rate=0.0):
         C = self.channels
 
-        blocks = hk.Sequential(
-            [
-                hk.Conv1D(C, 1),
-                nn.ReLU(),
-                hk.Conv1D(C, 3),
-                nn.ReLU(),
-                hk.Conv1D(C, 3, rate=3),
-                nn.ReLU(),
-                hk.Conv1D(C, 3, rate=9),
-                nn.ReLU(),
-                hk.Conv1D(C, 3, rate=9),
-                nn.ReLU(),
-                hk.Conv1D(C, 3, rate=3),
-                nn.ReLU(),
-                hk.Conv1D(C, 3),
-                nn.ReLU(),
-            ],
-            name="SnakeBlocks",
-        )
+        blocks = [
+            hk.Conv1D(C, 1),
+            hk.Conv1D(C, 3),
+            hk.Conv1D(C, 3, rate=3),
+            hk.Conv1D(C, 3, rate=9),
+            hk.Conv1D(C, 3, rate=9),
+            hk.Conv1D(C, 3, rate=3),
+            hk.Conv1D(C, 3),
+        ]
 
         # Initialize offset predictors with 0 -> default to no change
         mk_offset = hk.Conv1D(
@@ -78,10 +68,12 @@ class SnakeHead(hk.Module):
             diff = jnp.pad(diff, [(0, 0), (1, 1), (0, 0)])
             features.append(diff[:, 1:])
             features.append(diff[:, :-1])
-        input_features = jnp.concatenate(features, axis=-1)
+        x = jnp.concatenate(features, axis=-1)
 
-        convolved_features = blocks(input_features)
-        offsets = mk_offset(convolved_features)
+        for block in blocks:
+          x = jax.nn.relu(block(x))
+          x = nn.channel_dropout(x, dropout_rate)
+        offsets = mk_offset(x)
         return offsets
 
 

@@ -45,10 +45,10 @@ class COBRA:
 
         if self.weight_sharing:
             _head = getattr(snake_utils, self.head)(self.model_dim, self.coord_features)
-            head = lambda x, y: _head(x, y)
+            head = lambda x, y: _head(x, y, dropout_rate=dropout_rate)
         else:
             head_cls = getattr(snake_utils, self.head)
-            head = lambda x, y: head_cls(self.model_dim, self.coord_features)(x, y)
+            head = lambda x, y: head_cls(self.model_dim, self.coord_features)(x, y, dropout_rate=dropout_rate)
 
         for _ in range(self.iterations):
             if self.stop_grad:
