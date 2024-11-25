@@ -1,169 +1,55 @@
-import yaml
-import pickle
 from pathlib import Path
 
-import numpy as np
-import jax
-import jax.numpy as jnp
-import haiku as hk
-import optax
 from data_loading import get_loader
-from functools import partial
+import yaml
 
+import jax
+import orbax.checkpoint as ocp
+from collections import defaultdict
 import wandb
 from tqdm import tqdm
 
-import sys
-import augmax
-
-from lib import utils, losses, logging, models
-from lib.utils import TrainingState, prep, changed_state, save_state
-from evaluate import test_step, test_step_mcd, METRICS
+from lib import logging, config, load_config, Trainer
 
 jax.config.update("jax_numpy_rank_promotion", "raise")
-wandb.require("core")
 
 
-def get_optimizer():
-    lr_schedule = optax.warmup_cosine_decay_schedule(
-        init_value=1e-7,
-        peak_value=1e-3,
-        warmup_steps=10 * 487,
-        decay_steps=(500 - 10) * 487,
-        end_value=4e-5,
-    )
-    return optax.adam(lr_schedule, b1=0.5, b2=0.99)
+def main() -> None:
+  load_config()
+  run_name = config.name or None
 
+  train_loader = get_loader(config.batch_size, "train")
+  val_loader = get_loader(4, "val")
+  trainer = Trainer(jax.random.PRNGKey(config.seed))
 
-@partial(jax.jit, static_argnums=3)
-def train_step(batch, state, key, net):
-    _, optimizer = get_optimizer()
+  wandb.init(
+    project="COBRA Zakynthos", config=config, name=run_name, group=config.group
+  )
 
-    aug_key, model_key = jax.random.split(key)
-    img, contour = prep(batch, aug_key, augment=True)
+  assert wandb.run is not None
+  config.wandb_id = wandb.run.id
+  run_dir = Path("runs") / wandb.run.id
+  with open(run_dir / "config.yml", "w") as f:
+    f.write(yaml.dump(config, default_flow_style=False))
+  checkpointer = ocp.PyTreeCheckpointer()
+  trn_metrics = defaultdict(list)
 
-    def calculate_loss(params):
-        terms, buffers = net(params, state.buffers, model_key, img, is_training=True, dropout_rate=0.5)
-        terms = {**terms, "contour": contour}
-        loss, loss_terms = losses.call_loss(loss_fn, terms)
+  for epoch in range(1, 501):
+    wandb.log({"epoch": epoch}, step=epoch)
+    trn_metrics = {}
+    for batch in tqdm(train_loader, desc=f"Trn {epoch:3d}"):
+      metrics = trainer.train_step(batch)
+      for k, v in metrics.items():
+        trn_metrics[k].append(v)
 
-        return loss, (buffers, terms, loss_terms)
+    logging.log_metrics(trn_metrics, "trn", epoch)
 
-    (loss, (buffers, terms, metrics)), gradients = jax.value_and_grad(
-        calculate_loss, has_aux=True
-    )(state.params)
-    updates, new_opt = optimizer(gradients, state.opt, state.params)
-    new_params = optax.apply_updates(state.params, updates)
+    if epoch % 10 != 0:
+      continue
 
-    terms = {
-        **terms,
-        "contour": contour,
-        "imagery": img,
-    }
+    checkpointer.save((run_dir / f"{epoch}.ckpt").absolute(), trainer.state)
 
-    if "snake" not in terms:
-        terms["snake"] = utils.snakify(terms["segmentation"][:1], contour.shape[-2])
-        terms["contour"] = terms["contour"][:1]
-    if "snake_steps" not in terms:
-        terms["snake_steps"] = [terms["snake"]]
-
-    # Convert from normalized to to pixel coordinates
-    scale = img.shape[1] / 2
-    for key in ["snake", "snake_steps", "contour"]:
-        terms[key] = jax.tree.map(lambda x: scale * (1.0 + x), terms[key])
-
-    for m in METRICS:
-        metrics[m] = jnp.mean(losses.call_loss(METRICS[m], terms)[0])
-
-    return (
-        metrics,
-        terms,
-        changed_state(
-            state,
-            params=new_params,
-            buffers=buffers,
-            opt=new_opt,
-        ),
-    )
-
-
-if __name__ == "__main__":
-    if len(sys.argv) < 2 or sys.argv[1] != "-f":
-        utils.assert_git_clean()
-    train_key = jax.random.PRNGKey(42)
-    persistent_val_key = jax.random.PRNGKey(27)
-
-    config = yaml.load(open("config.yml"), Loader=yaml.SafeLoader)
-    # Don't do this at home, kids!
-    loss_fn = eval(config["loss_function"], losses.__dict__)
-
-    # initialize data loading
-    train_key, subkey = jax.random.split(train_key)
-    B = config["batch_size"]
-    train_loader = get_loader(B, "train")
-    val_loader = get_loader(4, "val")
-
-    batch = next(iter(train_loader))
-    imgs, _ = prep((batch['image'], batch['dem'], batch['contour']))
-    S, params, buffers = models.get_model(config, imgs)
-
-    # Initialize model and optimizer state
-    opt_init, _ = get_optimizer()
-    state = TrainingState(params=params, buffers=buffers, opt=opt_init(params))
-    net = S.apply
-
-    running_min = np.inf
-    last_improvement = 0
-    wandb.init(project=f'COBRA Zakynthos', config=config)
-
-    run_dir = Path(f"runs/{wandb.run.id}/")
-    run_dir.mkdir(parents=True)
-    config["run_id"] = wandb.run.id
-    with open(run_dir / "config.yml", "w") as f:
-        f.write(yaml.dump(config, default_flow_style=False))
-
-    for epoch in range(1, 501):
-        wandb.log({f"epoch": epoch}, step=epoch)
-        prog = tqdm(train_loader, desc=f"Ep {epoch} Trn")
-        trn_metrics = {}
-        loss_ary = None
-        for step, batch in enumerate(prog, 1):
-            train_key, subkey = jax.random.split(train_key)
-            batch = (batch['image'], batch['dem'], batch['contour'])
-            metrics, terms, state = train_step(batch, state, subkey, net)
-
-            for m in metrics:
-                if m not in trn_metrics:
-                    trn_metrics[m] = []
-                trn_metrics[m].append(metrics[m])
-
-        logging.log_metrics(trn_metrics, "trn", epoch, do_print=False)
-
-        if epoch % 10 != 0:
-            continue
-
-        # Save Checkpoint
-        save_state(state, run_dir / f"latest.pkl")
-
-        # Validate
-        val_key = persistent_val_key
-        val_metrics = {}
-        for step, batch in enumerate(val_loader):
-            val_key, *subkeys = jax.random.split(val_key, 6)
-            samples = (batch['image'], batch['dem'], batch['contour'])
-
-            predictions = []
-            for subkey in subkeys:
-              metrics, out = test_step_mcd(samples, state, subkey, net, dropout_rate=0.5)
-              predictions.append(jax.tree.map(lambda x: x[0], out))
-            out = {k: np.stack([p[k] for p in predictions]) for k in predictions[0]}
-
-            for m in metrics:
-                if m not in val_metrics:
-                    val_metrics[m] = []
-                val_metrics[m].append(metrics[m])
-
-            filename = batch['filename'][0].decode('utf8').removesuffix('.tif')
-            name = f"{batch['year'][0]}_{filename}"
-            logging.log_anim_multi(out, f"Animated/{name}", epoch)
-        logging.log_metrics(val_metrics, "val", epoch)
+    trainer.val_key = jax.random.PRNGKey(0)  # Re-seed val key
+    val_metrics = defaultdict(list)
+    for step, batch in tqdm(enumerate(val_loader), desc=f"Val {epoch:3d}"):
+      pass

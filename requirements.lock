@@ -8,13 +8,13 @@
 #   with-sources: false
 
 -e file:.
-absl-py==2.1.0
+absl-py==1.4.0
     # via array-record
     # via chex
-    # via dm-haiku
     # via etils
     # via keras
     # via optax
+    # via orbax-checkpoint
     # via tensorboard
     # via tensorflow
     # via tensorflow-datasets
@@ -25,6 +25,8 @@ astunparse==1.6.3
     # via tensorflow
 augmax==0.3.4
     # via cobra
+black==24.10.0
+    # via cobra
 certifi==2022.12.7
     # via requests
     # via sentry-sdk
@@ -33,14 +35,13 @@ charset-normalizer==2.1.1
 chex==0.1.87
     # via optax
 click==8.1.7
+    # via black
     # via tensorflow-datasets
     # via wandb
-contourpy==1.3.0
+contourpy==1.3.1
     # via matplotlib
 cycler==0.12.1
     # via matplotlib
-dm-haiku==0.0.13
-    # via cobra
 dm-tree==0.1.8
     # via tensorflow-datasets
 docker-pycreds==0.4.0
@@ -53,11 +54,14 @@ einops==0.8.0
 etils==1.10.0
     # via array-record
     # via optax
+    # via orbax-checkpoint
     # via tensorflow-datasets
 filelock==3.13.1
     # via torch
 flatbuffers==24.3.25
     # via tensorflow
+flax==0.10.1
+    # via cobra
 fonttools==4.54.1
     # via matplotlib
 fsspec==2024.2.0
@@ -71,7 +75,7 @@ gitpython==3.1.43
     # via wandb
 google-pasta==0.2.0
     # via tensorflow
-googleapis-common-protos==1.65.0
+googleapis-common-protos==1.66.0
     # via tensorflow-metadata
 grpcio==1.67.1
     # via tensorboard
@@ -79,6 +83,8 @@ grpcio==1.67.1
 h5py==3.12.1
     # via keras
     # via tensorflow
+humanize==4.11.0
+    # via orbax-checkpoint
 idna==3.4
     # via requests
 imageio==2.36.0
@@ -91,7 +97,9 @@ jax==0.4.35
     # via augmax
     # via chex
     # via cobra
+    # via flax
     # via optax
+    # via orbax-checkpoint
 jax-cuda12-pjrt==0.4.35
     # via jax-cuda12-plugin
 jax-cuda12-plugin==0.4.35
@@ -102,8 +110,6 @@ jaxlib==0.4.34
     # via optax
 jinja2==3.1.3
     # via torch
-jmp==0.0.4
-    # via dm-haiku
 keras==3.6.0
     # via tensorflow
 kiwisolver==1.4.7
@@ -128,10 +134,19 @@ ml-dtypes==0.4.1
     # via jaxlib
     # via keras
     # via tensorflow
+    # via tensorstore
 mpmath==1.3.0
     # via sympy
+msgpack==1.1.0
+    # via flax
+    # via orbax-checkpoint
+mypy-extensions==1.0.0
+    # via black
+    # via typing-inspect
 namex==0.0.8
     # via keras
+nest-asyncio==1.6.0
+    # via orbax-checkpoint
 networkx==3.2.1
     # via scikit-image
     # via torch
@@ -140,22 +155,23 @@ numpy==1.26.3
     # via chex
     # via cobra
     # via contourpy
-    # via dm-haiku
     # via etils
+    # via flax
     # via h5py
     # via imageio
     # via jax
     # via jaxlib
-    # via jmp
     # via keras
     # via matplotlib
     # via ml-dtypes
     # via optax
+    # via orbax-checkpoint
     # via scikit-image
     # via scipy
     # via tensorboard
     # via tensorflow
     # via tensorflow-datasets
+    # via tensorstore
     # via tifffile
 nvidia-cublas-cu12==12.6.3.3
     # via jax-cuda12-plugin
@@ -186,28 +202,36 @@ nvidia-nvjitlink-cu12==12.6.77
 opt-einsum==3.4.0
     # via jax
     # via tensorflow
-optax==0.2.3
+optax==0.2.4
     # via cobra
-optree==0.13.0
+    # via flax
+optree==0.13.1
     # via keras
+orbax-checkpoint==0.9.1
+    # via flax
 packaging==24.1
+    # via black
     # via keras
     # via lazy-loader
     # via matplotlib
     # via scikit-image
     # via tensorboard
     # via tensorflow
+pathspec==0.12.1
+    # via black
 pillow==10.2.0
     # via cobra
     # via imageio
     # via matplotlib
     # via scikit-image
 platformdirs==4.3.6
+    # via black
     # via wandb
 promise==2.3
     # via tensorflow-datasets
-protobuf==5.28.3
+protobuf==4.25.5
     # via googleapis-common-protos
+    # via orbax-checkpoint
     # via tensorboard
     # via tensorflow
     # via tensorflow-datasets
@@ -222,16 +246,22 @@ pygments==2.18.0
     # via rich
 pyparsing==3.2.0
     # via matplotlib
+pyrallis==0.3.1
+    # via cobra
 python-dateutil==2.9.0.post0
     # via matplotlib
 pyyaml==6.0.2
     # via cobra
+    # via flax
+    # via orbax-checkpoint
+    # via pyrallis
     # via wandb
 requests==2.28.1
     # via tensorflow
     # via tensorflow-datasets
     # via wandb
 rich==13.9.4
+    # via flax
     # via keras
 scikit-image==0.24.0
     # via cobra
@@ -263,8 +293,6 @@ smmap==5.0.1
     # via gitdb
 sympy==1.13.1
     # via torch
-tabulate==0.9.0
-    # via dm-haiku
 tensorboard==2.18.0
     # via tensorflow
 tensorboard-data-server==0.7.2
@@ -273,8 +301,11 @@ tensorflow==2.18.0
     # via cobra
 tensorflow-datasets==4.9.7
     # via cobra
-tensorflow-metadata==1.16.1
+tensorflow-metadata==1.13.1
     # via tensorflow-datasets
+tensorstore==0.1.67
+    # via flax
+    # via orbax-checkpoint
 termcolor==2.5.0
     # via tensorflow
     # via tensorflow-datasets
@@ -293,10 +324,15 @@ tqdm==4.66.5
 typing-extensions==4.9.0
     # via chex
     # via etils
+    # via flax
     # via optree
+    # via orbax-checkpoint
     # via simple-parsing
     # via tensorflow
     # via torch
+    # via typing-inspect
+typing-inspect==0.9.0
+    # via pyrallis
 urllib3==1.26.13
     # via requests
     # via sentry-sdk
