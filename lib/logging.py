@@ -1,6 +1,5 @@
 import jax
 import jax.numpy as jnp
-import haiku as hk
 import numpy as np
 import wandb
 import matplotlib.pyplot as plt
@@ -8,15 +7,7 @@ from matplotlib.collections import LineCollection
 from PIL import Image, ImageDraw
 
 from io import BytesIO
-from PIL import Image
-import numpy as np
 import base64
-
-from argparse import ArgumentParser
-from einops import rearrange
-
-from .jump_flood import jump_flood
-from .utils import min_pool
 
 
 def log_metrics(metrics, prefix, epoch, do_print=True, do_wandb=True):
@@ -30,7 +21,7 @@ def log_metrics(metrics, prefix, epoch, do_print=True, do_wandb=True):
 
 
 def get_rgb(data):
-  rgb = data["imagery"]
+  rgb = data["image"]
   if rgb.ndim == 4:
     rgb = rgb[0]
   if rgb.shape[-1] == 1:
@@ -39,7 +30,6 @@ def get_rgb(data):
     rgb = rgb[..., 3:0:-1]
   elif rgb.shape[-1] == 4:
     rgb = rgb[..., :3]
-  rgb = np.clip(255 * rgb, 0, 255).astype(np.uint8)
   return rgb
 
 
@@ -79,7 +69,7 @@ def log_anim(data, tag, step):
 
 def log_anim_multi(data, tag, step):
   img = get_rgb(data)
-  H, W, C = img.shape
+  H, W, _ = img.shape
   img = Image.fromarray(np.asarray(img))
   buffer = BytesIO()
   img.save(buffer, format="JPEG")

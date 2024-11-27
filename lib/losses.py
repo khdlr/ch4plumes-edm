@@ -12,12 +12,17 @@ class LossFunction(nnx.Module):
   def __init__(self):
     self.metrics = []
 
-  def __call__(self, terms):
-    loss, terms = self.impl(terms)
+  def __call__(self, terms, metric_scale=None):
+    loss, out = self.impl(terms)
+
+    detached = jax.tree.map(jax.lax.stop_gradient, terms)
+    if metric_scale is not None:
+      detached = jax.tree.map(lambda x: x * metric_scale, detached)
+
     for metric in self.metrics:
-      _, metric_terms = metric(terms)
-      terms.update(metric_terms)
-    return loss, terms
+      _, metric_terms = metric(detached)
+      out.update(metric_terms)
+    return loss, out
 
   @abstractmethod
   def impl(self, terms):
@@ -31,7 +36,8 @@ def metric(name):
   def decorator(fun):
     class LossModule(LossFunction):
       def impl(self, terms):
-        metric = fun(terms["snake"], terms["contour"])
+        metric = jax.vmap(fun)(terms["snake"], terms["contour"])
+        metric = jnp.mean(metric)
         return metric, {name: metric}
 
     return LossModule
@@ -41,18 +47,19 @@ def metric(name):
 
 class StepwiseLoss(LossFunction):
   def __init__(self, loss_fn):
+    super().__init__()
     self.loss_fn = loss_fn
 
   def impl(self, terms):
-    terms = {}
+    out = {}
     totals = []
     for step in range(1, len(terms["snake_steps"])):
-      total, terms = self.loss_fn(
+      total, out_terms = self.loss_fn(
         {"snake": terms["snake_steps"][step], "contour": terms["contour"]}
       )
       totals.append(total)
-      terms.update({f"{k}_step{step}": terms[k] for k in terms})
-    return sum(totals), terms
+      out.update({f"{k}_step{step}": out_terms[k] for k in out_terms})
+    return sum(totals), out
 
 
 ##### Generic Loss Functions ####

@@ -4,6 +4,14 @@ import augmax
 from einops import rearrange
 from typing import Union, Sequence, Optional, Tuple
 from subprocess import check_output
+from inspect import currentframe
+
+
+def debug_break():
+  print("== Debug Break ==")
+  cf = currentframe()
+  print(cf.f_back)
+  input()
 
 
 def prep(batch, key=None, augment=False, input_types=None):

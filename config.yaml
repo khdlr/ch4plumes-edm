@@ -1,17 +1,12 @@
 ### Model Specification
-model: COBRA
-model_args:
+model:
   backbone: Xception
   model_dim: 1024
-  iterations: 4
-  coord_features: true
-  stop_grad: true
-  weight_sharing: true
-  head: SnakeHead
+  iterations: 5
+  vertices: 128
 ### Training configuration
 seed: 27
-loss_function: huber
+loss_function: Huber
 loss_stepwise: true
 ### Data args
-batch_size: 12
-vertices: 128
+batch_size: 8

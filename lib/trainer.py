@@ -1,25 +1,24 @@
 import jax
-import jax.numpy as jnp
-from flax import nnx
 import optax
-from .config_mod import config
-from .utils import prep
+import orbax.checkpoint as ocp
+from flax import nnx
+
 from . import losses
-from .models import Model
-import pandas as pd
-from einops import rearrange
+from .config_mod import config
+from .models import COBRA
+from .utils import prep
 
 
 class Trainer:
   def __init__(self, key):
     init_key, self.trn_key, self.val_key = jax.random.split(key, 3)
     model_rngs = nnx.Rngs(init_key)
-    model = Model(config, rngs=model_rngs)
+    model = COBRA(config.model, rngs=model_rngs)
     model.train()
     opt = optax.adamw(1e-3, weight_decay=1e-5)
     self.state = nnx.Optimizer(model, opt)
 
-    self.loss_fn = getattr(losses, config.loss_function)
+    self.loss_fn = getattr(losses, config.loss_function)()
     if config.loss_stepwise:
       self.loss_fn = losses.StepwiseLoss(self.loss_fn)
 
@@ -28,6 +27,8 @@ class Trainer:
     self.loss_fn.add_metric(losses.L1())
     self.loss_fn.add_metric(losses.L2())
     self.loss_fn.add_metric(losses.Huber())
+
+    self.checkpointer = ocp.PyTreeCheckpointer()
 
   def train_step(self, batch):
     self.state.model.train()
@@ -41,18 +42,30 @@ class Trainer:
     data = (batch["image"], batch["dem"], batch["contour"])
     return _test_step_jit(self.state, data, key, self.loss_fn)
 
+  def save_state(self, path):
+    graphdef, state = nnx.split(self.state)
+    state = state.flat_state()
+
+    for key_path in list(state.keys()):
+      if state[key_path].type == nnx.RngKey:
+        # Convert the RNG key into an array of uint32 numbers
+        uint32_array = jax.random.key_data(state[key_path].value)
+        # Replace the RNG key in the model state with the array
+        state[key_path] = nnx.VariableState(type=nnx.Param, value=uint32_array)
+
+    self.checkpointer.save(path, state)
+
 
 @nnx.jit
 def _train_step_jit(state, batch, key, loss_fn):
-  aug_key, model_key = jax.random.split(key)
-  img, contour = prep(batch, aug_key)
+  img, contour = prep(batch, key)
 
   batch = prep(batch, key)
 
   def get_loss(model):
-    terms = model(img, model_key, dropout_rate=0.5)
+    terms = model(img, is_training=True, dropout_rate=0.5)
     terms["contour"] = contour
-    loss, metrics = loss_fn(terms)
+    loss, metrics = loss_fn(terms, metric_scale=img.shape[1] / 2)
     metrics["loss"] = loss
     return loss, metrics
 
@@ -64,8 +77,8 @@ def _train_step_jit(state, batch, key, loss_fn):
 @nnx.jit
 def _test_step_jit(state, batch, key, loss_fn):
   img, contour = prep(batch)
-  terms = state.model(img, key, dropout_rate=0.5)
+  terms = state.model(img, is_training=True, dropout_rate=0.5)
   terms["contour"] = contour
-  _, metrics = loss_fn(terms)
+  _, metrics = loss_fn(terms, metric_scale=img.shape[1] / 2)
 
   return terms, metrics

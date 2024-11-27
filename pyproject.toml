@@ -19,7 +19,7 @@ dependencies = [
     "pillow>=9.0.0",
     "torch==2.4.0+cpu",
     "tensorflow-datasets>=4.9.6",
-    "tensorflow[cpu]>=2.17.0",
+    "tensorflow-cpu",
     "flax>=0.10.1",
     "pyrallis>=0.3.1",
     "black>=24.10.0",
@@ -36,6 +36,8 @@ managed = true
 dev-dependencies = [
     "ipython>=8.26.0",
     "pyright>=1.1.388",
+    "jupyter[lab]>=1.1.1",
+    "treescope>=0.1.6",
 ]
 
 [tool.hatch.metadata]
