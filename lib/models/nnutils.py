@@ -95,7 +95,7 @@ class SepConvBN(nnx.Module):
     self,
     c_in: int,
     c_out: int,
-    kernel_size: int,
+    kernel_size: tuple[int, int],
     depth_activation=False,
     *,
     rngs: nnx.Rngs,
@@ -104,11 +104,11 @@ class SepConvBN(nnx.Module):
     super().__init__()
     self.depth_activation = depth_activation
 
-    self.channel_conv = nnx.Conv(c_in, c_out, [1, 1], rngs=rngs, use_bias=False)
+    self.channel_conv = nnx.Conv(c_in, c_out, (1, 1), rngs=rngs, use_bias=False)
     self.spatial_conv = ConvBNAct(
       c_out,
       c_out,
-      [kernel_size, kernel_size],
+      kernel_size,
       feature_group_count=c_out,
       **kwargs,
       rngs=rngs,

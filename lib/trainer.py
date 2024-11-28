@@ -15,6 +15,8 @@ class Trainer:
     model_rngs = nnx.Rngs(init_key)
     model = COBRA(config.model, rngs=model_rngs)
     model.train()
+    with open("model.txt", "w") as f:
+      print(model, file=f)
     opt = optax.adamw(1e-3, weight_decay=1e-5)
     self.state = nnx.Optimizer(model, opt)
 

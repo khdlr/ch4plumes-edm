@@ -19,12 +19,12 @@ class SnakeHead(nnx.Module):
 
     self.blocks = [
       nnx.Conv(D, C, [1], rngs=rngs),
-      # simplify nnx.Conv(C, C, [3], rngs=rngs),
-      # simplify nnx.Conv(C, C, [3], kernel_dilation=3, rngs=rngs),
-      # simplify nnx.Conv(C, C, [3], kernel_dilation=9, rngs=rngs),
-      # simplify nnx.Conv(C, C, [3], kernel_dilation=9, rngs=rngs),
-      # simplify nnx.Conv(C, C, [3], kernel_dilation=3, rngs=rngs),
-      # simplify nnx.Conv(C, C, [3], rngs=rngs),
+      nnx.Conv(C, C, [3], rngs=rngs),
+      nnx.Conv(C, C, [3], kernel_dilation=3, rngs=rngs),
+      nnx.Conv(C, C, [3], kernel_dilation=9, rngs=rngs),
+      nnx.Conv(C, C, [3], kernel_dilation=9, rngs=rngs),
+      nnx.Conv(C, C, [3], kernel_dilation=3, rngs=rngs),
+      nnx.Conv(C, C, [3], rngs=rngs),
     ]
 
     # Initialize offset predictor with 0 -> default to no change

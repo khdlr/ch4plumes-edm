@@ -1,8 +1,8 @@
 ### Model Specification
 model:
   backbone: Xception
-  model_dim: 128 # simplify 1024
-  iterations: 2 # simplify 5
+  model_dim: 1024
+  iterations: 5
   vertices: 128
 ### Training configuration
 seed: 27

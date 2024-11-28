@@ -13,26 +13,29 @@ class Xception(nnx.Module):
 
   def __init__(self, c_in, *, rngs: nnx.Rngs):
     block = partial(XceptionBlock, strides=2, return_skip=True, rngs=rngs)
-    self.block1 = block(c_in, [128, 128, 128])
-    self.block2 = block(128, [256, 256, 256])
-    self.block3 = block(256, [768, 768, 768])
+    # Pre-reduction
+    self.block1 = block(c_in, [16, 64, 64])
+    self.block2 = block(64, [128, 128, 128])
+    self.block3 = block(128, [256, 256, 512])
 
     self.middle = [
-      # simplify  XceptionBlock(768, [768, 768, 768], skip_type="sum", strides=1, rngs=rngs)
-      # simplify  for _ in range(8)
+      XceptionBlock(512, [512, 512, 512], skip_type="sum", strides=1, rngs=rngs)
+      for _ in range(4)
     ]
-    self.block4 = XceptionBlock(768, [768, 768, 768], strides=2, rngs=rngs)
+    self.block4 = XceptionBlock(512, [512, 512, 512], strides=2, rngs=rngs)
     self.block5 = XceptionBlock(
-      768, [1024, 1024, 1024], strides=1, kernel_dilation=(1, 2, 4), rngs=rngs
+      512, [512, 512, 512], strides=1, kernel_dilation=(1, 2, 4), rngs=rngs
     )
 
     self.aspp = [
-      BDBlock(1024, 256, rngs=rngs),
-      nn.ConvBNAct(1024, 256, 1, act="elu", rngs=rngs),
-    ] + [nn.SepConvBN(1024, 256, 3, kernel_dilation=r, rngs=rngs) for r in range(1, 6)]
+      BDBlock(512, 128, rngs=rngs),
+      nn.ConvBNAct(512, 128, (1, 1), act="elu", rngs=rngs),
+    ] + [
+      nn.SepConvBN(512, 128, (3, 3), kernel_dilation=r, rngs=rngs) for r in range(1, 6)
+    ]
 
-    self.final = nn.ConvBNAct(256 * 7, 512, 1, act="elu", rngs=rngs)
-    self.skip_final = nn.ConvBNAct(768, 64, 1, act="elu", rngs=rngs)
+    self.final = nn.ConvBNAct(128 * 7, 512, (1, 1), act="elu", rngs=rngs)
+    self.skip_final = nn.ConvBNAct(256, 64, (1, 1), act="elu", rngs=rngs)
     self.dropout = nn.ChannelDropout(rngs=rngs)
 
   def __call__(self, x, dropout_rate=0.0):
@@ -60,7 +63,7 @@ class Xception(nnx.Module):
 
 class BDBlock(nnx.Module):
   def __init__(self, c_in, c_out, *, rngs: nnx.Rngs):
-    self.conv = nn.ConvBNAct(c_in, c_out, 1, act="elu", rngs=rngs)
+    self.conv = nn.ConvBNAct(c_in, c_out, [1, 1], act="elu", rngs=rngs)
 
   def __call__(self, x):
     x = nnx.max_pool(x, window_shape=(2, 2), strides=(2, 2), padding="SAME")
@@ -93,7 +96,7 @@ class XceptionBlock(nnx.Module):
         nn.SepConvBN(
           c_current,
           depth_list[i],
-          kernel_size=3,
+          kernel_size=(3, 3),
           strides=strides if i == 2 else 1,
           kernel_dilation=kernel_dilation[i],
           rngs=rngs,
