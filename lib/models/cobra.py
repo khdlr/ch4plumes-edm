@@ -24,10 +24,10 @@ class COBRA(nnx.Module):
     self.dropout = nn.ChannelDropout(rngs=rngs)
     self.rngs = rngs
 
-  def __call__(self, imagery, is_training=False, dropout_rate=0.0):
-    feature_maps = self.backbone(imagery, is_training, dropout_rate=dropout_rate)
+  def __call__(self, imagery, dropout_rate=0.0):
+    feature_maps = self.backbone(imagery, dropout_rate=dropout_rate)
 
-    if is_training:
+    if dropout_rate > 0.0:
       feature_maps = [self.dropout(f, dropout_rate) for f in feature_maps]
 
     init_keys = jax.random.split(self.rngs(), imagery.shape[0])

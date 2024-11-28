@@ -83,9 +83,9 @@ class ConvBNAct(nnx.Module):
     else:
       raise ValueError(f"no activation called {act}")
 
-  def __call__(self, x, is_training=False):
+  def __call__(self, x):
     x = self.conv(x)
-    x = self.bn(x, is_training)
+    x = self.bn(x)
     x = self.act(x)
     return x
 
@@ -104,7 +104,7 @@ class SepConvBN(nnx.Module):
     super().__init__()
     self.depth_activation = depth_activation
 
-    self.channel_conv = nnx.Conv(c_in, c_out, [1, 1], rngs=rngs)
+    self.channel_conv = nnx.Conv(c_in, c_out, [1, 1], rngs=rngs, use_bias=False)
     self.spatial_conv = ConvBNAct(
       c_out,
       c_out,
@@ -114,11 +114,11 @@ class SepConvBN(nnx.Module):
       rngs=rngs,
     )
 
-  def __call__(self, x, is_training):
+  def __call__(self, x):
     if self.depth_activation:
       x = jax.nn.relu(x)
     x = self.channel_conv(x)
-    x = self.spatial_conv(x, is_training=is_training)
+    x = self.spatial_conv(x)
 
     return x
 

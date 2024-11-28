@@ -63,7 +63,7 @@ def _train_step_jit(state, batch, key, loss_fn):
   batch = prep(batch, key)
 
   def get_loss(model):
-    terms = model(img, is_training=True, dropout_rate=0.5)
+    terms = model(img, dropout_rate=0.5)
     terms["contour"] = contour
     loss, metrics = loss_fn(terms, metric_scale=img.shape[1] / 2)
     metrics["loss"] = loss
@@ -77,7 +77,7 @@ def _train_step_jit(state, batch, key, loss_fn):
 @nnx.jit
 def _test_step_jit(state, batch, key, loss_fn):
   img, contour = prep(batch)
-  terms = state.model(img, is_training=True, dropout_rate=0.5)
+  terms = state.model(img, dropout_rate=0.5)
   terms["contour"] = contour
   _, metrics = loss_fn(terms, metric_scale=img.shape[1] / 2)
 

@@ -18,8 +18,8 @@ class Xception(nnx.Module):
     self.block3 = block(256, [768, 768, 768])
 
     self.middle = [
-      XceptionBlock(768, [768, 768, 768], skip_type="sum", strides=1, rngs=rngs)
-      for _ in range(8)
+      # simplify  XceptionBlock(768, [768, 768, 768], skip_type="sum", strides=1, rngs=rngs)
+      # simplify  for _ in range(8)
     ]
     self.block4 = XceptionBlock(768, [768, 768, 768], strides=2, rngs=rngs)
     self.block5 = XceptionBlock(
@@ -35,26 +35,26 @@ class Xception(nnx.Module):
     self.skip_final = nn.ConvBNAct(768, 64, 1, act="elu", rngs=rngs)
     self.dropout = nn.ChannelDropout(rngs=rngs)
 
-  def __call__(self, x, is_training=False, dropout_rate=0.0):
+  def __call__(self, x, dropout_rate=0.0):
     dropout = partial(jax.tree.map, partial(self.dropout, dropout_rate=dropout_rate))
 
     # Backbone
-    x, _ = dropout(self.block1(x, is_training))
-    x, _ = dropout(self.block2(x, is_training))
-    x, skip3 = dropout(self.block3(x, is_training))
+    x, _ = dropout(self.block1(x))
+    x, _ = dropout(self.block2(x))
+    x, skip3 = dropout(self.block3(x))
 
     for block in self.middle:
-      x = dropout(block(x, is_training))
+      x = dropout(block(x))
 
-    x = dropout(self.block4(x, is_training))
-    x = dropout(self.block5(x, is_training))
+    x = dropout(self.block4(x))
+    x = dropout(self.block5(x))
 
     # ASPP
     # Image Feature branch
-    x = dropout(jnp.concatenate([bl(x, is_training) for bl in self.aspp], axis=-1))
+    x = dropout(jnp.concatenate([bl(x) for bl in self.aspp], axis=-1))
 
-    x = dropout(self.final(x, is_training))
-    skip3 = dropout(self.skip_final(skip3, is_training))
+    x = dropout(self.final(x))
+    skip3 = dropout(self.skip_final(skip3))
     return [skip3, x]
 
 
@@ -62,9 +62,9 @@ class BDBlock(nnx.Module):
   def __init__(self, c_in, c_out, *, rngs: nnx.Rngs):
     self.conv = nn.ConvBNAct(c_in, c_out, 1, act="elu", rngs=rngs)
 
-  def __call__(self, x, is_training):
+  def __call__(self, x):
     x = nnx.max_pool(x, window_shape=(2, 2), strides=(2, 2), padding="SAME")
-    x = self.conv(x, is_training)
+    x = self.conv(x)
     x = nn.upsample(x, factor=2)
     return x
 
@@ -109,14 +109,14 @@ class XceptionBlock(nnx.Module):
       self.shortcut = nn.identity
     self.return_skip = return_skip
 
-  def __call__(self, inputs, is_training):
+  def __call__(self, inputs):
     residual = inputs
     for i, block in enumerate(self.blocks):
-      residual = block(residual, is_training)
+      residual = block(residual)
       if i == 1:
         skip = residual
 
-    shortcut = self.shortcut(inputs, is_training)
+    shortcut = self.shortcut(inputs)
     outputs = residual + shortcut
 
     if self.return_skip:

@@ -19,12 +19,12 @@ class SnakeHead(nnx.Module):
 
     self.blocks = [
       nnx.Conv(D, C, [1], rngs=rngs),
-      nnx.Conv(C, C, [3], rngs=rngs),
-      nnx.Conv(C, C, [3], kernel_dilation=3, rngs=rngs),
-      nnx.Conv(C, C, [3], kernel_dilation=9, rngs=rngs),
-      nnx.Conv(C, C, [3], kernel_dilation=9, rngs=rngs),
-      nnx.Conv(C, C, [3], kernel_dilation=3, rngs=rngs),
-      nnx.Conv(C, C, [3], rngs=rngs),
+      # simplify nnx.Conv(C, C, [3], rngs=rngs),
+      # simplify nnx.Conv(C, C, [3], kernel_dilation=3, rngs=rngs),
+      # simplify nnx.Conv(C, C, [3], kernel_dilation=9, rngs=rngs),
+      # simplify nnx.Conv(C, C, [3], kernel_dilation=9, rngs=rngs),
+      # simplify nnx.Conv(C, C, [3], kernel_dilation=3, rngs=rngs),
+      # simplify nnx.Conv(C, C, [3], rngs=rngs),
     ]
 
     # Initialize offset predictor with 0 -> default to no change
@@ -53,7 +53,7 @@ class SnakeHead(nnx.Module):
     return offsets
 
 
-def random_bezier(key, vertices=64):
+def random_bezier(key, vertices):
   t = jnp.linspace(0, 1, vertices).reshape(1, -1, 1)
   points = jax.random.uniform(key, [5, 1, 2], minval=-1, maxval=1)
   while points.shape[0] != 1:
