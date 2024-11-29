@@ -27,13 +27,9 @@ class COBRA(nnx.Module):
   def __call__(self, imagery, dropout_rate=0.0):
     feature_maps = self.backbone(imagery, dropout_rate=dropout_rate)
 
-    if dropout_rate > 0.0:
-      feature_maps = [self.dropout(f, dropout_rate) for f in feature_maps]
-
     init_keys = jax.random.split(self.rngs(), imagery.shape[0])
     init_fn = partial(snake_utils.random_bezier, vertices=self.vertices)
     vertices = jax.vmap(init_fn)(init_keys)
-    # vertices = jnp.zeros([imagery.shape[0], self.vertices, 2])
     steps = [vertices]
 
     for _ in range(self.iterations):

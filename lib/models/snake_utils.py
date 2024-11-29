@@ -37,7 +37,10 @@ class SnakeHead(nnx.Module):
   def __call__(self, vertices, feature_maps, *, dropout_rate=0.0):
     features = []
     for feature_map in feature_maps:
-      features.append(jax.vmap(sample_at_vertices, [0, 0])(vertices, feature_map))
+      feat = jax.vmap(sample_at_vertices, [0, 0])(vertices, feature_map)
+      feat = self.dropout(feat, dropout_rate=dropout_rate)
+      features.append(feat)
+
     # For coordinate features
     if self.coord_features:
       diff = vertices[:, 1:] - vertices[:, :-1]
@@ -48,7 +51,6 @@ class SnakeHead(nnx.Module):
 
     for block in self.blocks:
       x = jax.nn.relu(block(x))
-      x = self.dropout(x, dropout_rate)
     offsets = self.mk_offset(x)
     return offsets
 

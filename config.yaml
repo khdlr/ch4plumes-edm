@@ -6,7 +6,7 @@ model:
   vertices: 128
 ### Training configuration
 seed: 27
-loss_function: Huber
+loss_function: SoftDTW
 loss_stepwise: true
 ### Data args
-batch_size: 8
+batch_size: 16
