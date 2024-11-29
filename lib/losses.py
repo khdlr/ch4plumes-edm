@@ -153,7 +153,8 @@ class AbstractDTW(nnx.Module):
     raise NotImplementedError()
 
   def __call__(self, terms):
-    loss = self.dtw(terms["snake"], terms["contour"])
+    loss = jax.vmap(self.dtw)(terms["snake"], terms["contour"])
+    loss = jnp.mean(loss)
     return loss, {"dtw": loss}
 
   def dtw(self, snake, contour):
