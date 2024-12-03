@@ -9,6 +9,8 @@ from .config_mod import config
 from .models import COBRA
 from .utils import prep
 
+from tqdm import tqdm
+
 ddpm_betas = []
 
 
@@ -79,7 +81,7 @@ class DDPMTrainer:
     terms = {
       "contour": contour,
       "snake": sampling_terms["prediction"],
-      "snake_steps": sampling_terms["sampling_steps"],
+      "snake_steps": sampling_terms["steps"],
     }
     loss, metrics = jax.jit(self.loss_fn)(terms, metric_scale=img.shape[1] / 2)
     metrics["loss"] = loss
@@ -91,17 +93,7 @@ class DDPMTrainer:
     self.state.model.eval()
     if key is None:
       self.val_key, key = jax.random.split(self.val_key)
-    init_key, *sample_keys = jax.random.split(key, self.timesteps + 1)
-
-    B, *_ = imagery.shape
-    x = jax.random.normal(init_key, [B, 128, 2])
-    features = jax.jit(self.state.model.backbone)(imagery)
-    sampling_steps = []
-    # sample step
-    for key, t in zip(sample_keys, reversed(jnp.arange(self.timesteps))):
-      x, x0 = _sample_step(self.state, x, features, key, self.ddpm_params, t)
-      sampling_steps.append(x0)
-    return {"prediction": sampling_steps[-1], "sampling_steps": sampling_steps}
+    return _sample_jit(self.state, imagery, self.ddpm_params, key)
 
   def save_state(self, path):
     graphdef, state = nnx.split(self.state)
@@ -115,6 +107,25 @@ class DDPMTrainer:
         state[key_path] = nnx.VariableState(type=nnx.Param, value=uint32_array)
 
     self.checkpointer.save(path, state)
+
+
+@nnx.jit
+def _sample_jit(state, imagery, ddpm_params, key):
+  (T,) = ddpm_params["betas"].shape
+  init_key, sample_key = jax.random.split(key)
+  sample_keys = jax.random.split(sample_key, T)
+  B, *_ = imagery.shape
+  x = jax.random.normal(init_key, [B, 128, 2])
+  features = jax.jit(state.model.backbone)(imagery)
+
+  def scan_step(x, key_t):
+    key, t = key_t
+    return _sample_step(state, x, features, key, ddpm_params, t)
+
+  _, steps = jax.lax.scan(scan_step, x, (sample_keys, jnp.arange(T)[::-1]))
+
+  # sample step
+  return {"prediction": steps[-1], "steps": steps}
 
 
 # Adapted from https://github.com/yiyixuxu/denoising-diffusion-flax/blob/main/denoising_diffusion_flax/train.py
@@ -158,6 +169,7 @@ def _sample_step(state, vertices, features, key, ddpm_params, t):
   sqrt_alpha_bar = ddpm_params["sqrt_alphas_bar"][batched_t, None, None]
   alpha_bar = ddpm_params["alphas_bar"][batched_t, None, None]
   x0 = 1.0 / sqrt_alpha_bar * vertices - jnp.sqrt(1.0 / alpha_bar - 1) * pred
+  x0 = jnp.clip(x0, -1.0, 1.0)
 
   beta = ddpm_params["betas"][batched_t, None, None]
   alpha = ddpm_params["alphas"][batched_t, None, None]
