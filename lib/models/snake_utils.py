@@ -7,15 +7,11 @@ from flax import nnx
 
 
 class SnakeHead(nnx.Module):
-  def __init__(self, d_in, d_hidden, coord_features=False, *, rngs: nnx.Rngs):
+  def __init__(self, d_in, d_hidden, *, rngs: nnx.Rngs):
     super().__init__()
-    self.coord_features = coord_features
 
-    D = d_in
+    D = d_in + 2
     C = d_hidden
-
-    if self.coord_features:
-      D += 2
 
     self.blocks = [
       nnx.Conv(D, C, [1], rngs=rngs),
@@ -42,11 +38,7 @@ class SnakeHead(nnx.Module):
       features.append(feat)
 
     # For coordinate features
-    if self.coord_features:
-      diff = vertices[:, 1:] - vertices[:, :-1]
-      diff = jnp.pad(diff, [(0, 0), (1, 1), (0, 0)])
-      features.append(diff[:, 1:])
-      features.append(diff[:, :-1])
+    features.append(vertices)
     x = jnp.concatenate(features, axis=-1)
 
     for block in self.blocks:

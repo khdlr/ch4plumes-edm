@@ -10,7 +10,7 @@ from collections import defaultdict
 import wandb
 from tqdm import tqdm
 
-from lib import logging, config, Trainer
+from lib import logging, config, Trainer, DDPMTrainer
 
 jax.config.update("jax_numpy_rank_promotion", "raise")
 
@@ -18,7 +18,7 @@ jax.config.update("jax_numpy_rank_promotion", "raise")
 def main() -> None:
   run_name = config.name or None
 
-  trainer = Trainer(jax.random.PRNGKey(config.seed))
+  trainer = DDPMTrainer(jax.random.PRNGKey(config.seed))
   train_loader = get_loader(config.batch_size, "train")
   val_loader = get_loader(4, "val")
 
