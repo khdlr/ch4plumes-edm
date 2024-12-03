@@ -41,5 +41,5 @@ class COBRA(nnx.Module):
 
   def ddpm_forward(self, imagery, vertices):
     "Get snake head output when already given some vertices, useful for DDPM training"
-    feature_maps = self.backbone(imagery, dropout_rate=0.0)
-    return self.head(vertices, feature_maps)
+    features = self.backbone(imagery, dropout_rate=0.0)
+    return self.head(vertices, features)

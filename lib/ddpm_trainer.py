@@ -36,12 +36,13 @@ class DDPMTrainer:
 
     self.checkpointer = ocp.PyTreeCheckpointer()
 
-    T = 200
+    self.n_vertices = config.model.vertices
+    self.timesteps = 200
     # DDPM Params initialization taken from https://github.com/yiyixuxu/denoising-diffusion-flax/blob/main/denoising_diffusion_flax/utils.py
     # Original Author: YiYi Xu (https://github.com/yiyixuxu)
     s = 0.008
     max_beta = 0.999
-    ts = jnp.linspace(0, 1, T + 1)
+    ts = jnp.linspace(0, 1, self.timesteps + 1)
     alphas_bar = jnp.cos((ts + s) / (1 + s) * jnp.pi / 2) ** 2
     alphas_bar = alphas_bar / alphas_bar[0]
     betas = 1 - (alphas_bar[1:] / alphas_bar[:-1])
@@ -72,7 +73,35 @@ class DDPMTrainer:
     self.state.model.eval()
     self.val_key, key = jax.random.split(self.val_key)
     data = (batch["image"], batch["dem"], batch["contour"])
-    return _test_step_jit(self.state, data, key, self.loss_fn, self.ddpm_params)
+    img, contour = prep(data, key)
+    sampling_terms = self.sample(img)
+
+    terms = {
+      "contour": contour,
+      "snake": sampling_terms["prediction"],
+      "snake_steps": sampling_terms["sampling_steps"],
+    }
+    loss, metrics = jax.jit(self.loss_fn)(terms, metric_scale=img.shape[1] / 2)
+    metrics["loss"] = loss
+    return terms, metrics
+
+  # Adapted from https://github.com/yiyixuxu/denoising-diffusion-flax/blob/main/denoising_diffusion_flax/sampling.py
+  # Original Author: YiYi Xu (https://github.com/yiyixuxu)
+  def sample(self, imagery, *, key=None):
+    self.state.model.eval()
+    if key is None:
+      self.val_key, key = jax.random.split(self.val_key)
+    init_key, *sample_keys = jax.random.split(key, self.timesteps + 1)
+
+    B, *_ = imagery.shape
+    x = jax.random.normal(init_key, [B, 128, 2])
+    features = jax.jit(self.state.model.backbone)(imagery)
+    sampling_steps = []
+    # sample step
+    for key, t in zip(sample_keys, reversed(jnp.arange(self.timesteps))):
+      x, x0 = _sample_step(self.state, x, features, key, self.ddpm_params, t)
+      sampling_steps.append(x0)
+    return {"prediction": sampling_steps[-1], "sampling_steps": sampling_steps}
 
   def save_state(self, path):
     graphdef, state = nnx.split(self.state)
@@ -120,29 +149,31 @@ def _train_step_jit(state, batch, key, loss_fn, ddpm_params):
 
 
 @nnx.jit
-def _test_step_jit(state, batch, key, loss_fn, ddpm_params):
-  aug_key, t_key, noise_key = jax.random.split(key, 3)
-  img, contour = prep(batch, aug_key)
-  B, H, W, C = img.shape
-  B, V, _ = contour.shape
+def _sample_step(state, vertices, features, key, ddpm_params, t):
+  batched_t = jnp.ones((vertices.shape[0],), dtype=jnp.int32) * t
 
-  batched_t = jax.random.randint(
-    t_key, shape=(B,), dtype=jnp.int32, minval=0, maxval=len(ddpm_betas)
-  )
-  target = noise = jax.random.normal(noise_key, contour.shape)
+  pred = state.model.head(vertices, features)
 
+  # Recover x0
   sqrt_alpha_bar = ddpm_params["sqrt_alphas_bar"][batched_t, None, None]
-  sqrt_1m_alpha_bar = ddpm_params["sqrt_1m_alphas_bar"][batched_t, None, None]
-  x_t = sqrt_alpha_bar * contour + sqrt_1m_alpha_bar * noise
+  alpha_bar = ddpm_params["alphas_bar"][batched_t, None, None]
+  x0 = 1.0 / sqrt_alpha_bar * vertices - jnp.sqrt(1.0 / alpha_bar - 1) * pred
 
-  # TODO: Check conditioning code in https://github.com/yiyixuxu/denoising-diffusion-flax/blob/main/denoising_diffusion_flax/train.py#L266C1-L266C23
-  def get_loss(model):
-    pred = model.ddpm_forward(img)
-    loss = loss_fn(pred, target)
-    loss, metrics = loss_fn(
-      {"contour": contour, "snake": pred}, metric_scale=img.shape[1] / 2
-    )
-    metrics["loss"] = loss
-    return loss, metrics
+  beta = ddpm_params["betas"][batched_t, None, None]
+  alpha = ddpm_params["alphas"][batched_t, None, None]
+  alpha_bar_last = ddpm_params["alphas_bar"][batched_t - 1, None, None]
+  sqrt_alpha_bar_last = ddpm_params["sqrt_alphas_bar"][batched_t - 1, None, None]
 
-  return terms, metrics
+  # only needed when t > 0
+  coef_x0 = beta * sqrt_alpha_bar_last / (1.0 - alpha_bar)
+  coef_xt = (1.0 - alpha_bar_last) * jnp.sqrt(alpha) / (1 - alpha_bar)
+  posterior_mean = coef_x0 * x0 + coef_xt * vertices
+
+  posterior_variance = beta * (1 - alpha_bar_last) / (1.0 - alpha_bar)
+  posterior_log_variance = jnp.log(jnp.clip(posterior_variance, a_min=1e-20))
+
+  x = posterior_mean + jnp.exp(0.5 * posterior_log_variance) * jax.random.normal(
+    key, x0.shape
+  )
+
+  return x, x0

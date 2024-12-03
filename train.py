@@ -32,19 +32,19 @@ def main() -> None:
     f.write(yaml.dump(config, default_flow_style=False))
 
   for epoch in range(1, 501):
-    wandb.log({"epoch": epoch}, step=epoch)
-    trn_metrics = defaultdict(list)
-    for batch in tqdm(train_loader, desc=f"Trn {epoch:3d}"):
-      metrics = trainer.train_step(batch)
-      for k, v in metrics.items():
-        trn_metrics[k].append(v)
+    # wandb.log({"epoch": epoch}, step=epoch)
+    # trn_metrics = defaultdict(list)
+    # for batch in tqdm(train_loader, desc=f"Trn {epoch:3d}"):
+    #   metrics = trainer.train_step(batch)
+    #   for k, v in metrics.items():
+    #     trn_metrics[k].append(v)
 
-    logging.log_metrics(trn_metrics, "trn", epoch)
+    # logging.log_metrics(trn_metrics, "trn", epoch)
 
-    if epoch % 10 != 0:
-      continue
+    # if epoch % 10 != 0:
+    #   continue
 
-    trainer.save_state((run_dir / f"{epoch}.ckpt").absolute())
+    # trainer.save_state((run_dir / f"{epoch}.ckpt").absolute())
 
     trainer.val_key = jax.random.PRNGKey(0)  # Re-seed val key
     val_metrics = defaultdict(list)

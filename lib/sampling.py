@@ -105,18 +105,16 @@ def ddpm_sample_step(
   return x, x0
 
 
-def sample_loop(rng, state, shape, p_sample_step, timesteps):
+def sample_loop(key, model, imagery, n_vertices, timesteps):
   # shape include the device dimension: (device, per_device_batch_size, H,W,C)
-  rng, x_rng = jax.random.split(rng)
-  list_x0 = []
+  init_key, *sample_keys = jax.random.split(key, len(timesteps) + 1)
   # generate the initial sample (pure noise)
-  x = jax.random.normal(x_rng, shape)
-  x0 = jnp.zeros_like(x)  # initialize x0 for self-conditioning
+  image_features = jax.jit(model.backbone)(imagery)
+  B, H, W, C = imagery.shape
+  x = jax.random.normal(init_key, [B, n_vertices, 2])
   # sample step
-  for t in reversed(jnp.arange(timesteps)):
-    rng, *step_rng = jax.random.split(rng, num=jax.local_device_count() + 1)
-    step_rng = jnp.asarray(step_rng)
-    x, x0 = p_sample_step(state, step_rng, x, jax_utils.replicate(t), x0)
+  for key, t in zip(keys, reversed(jnp.arange(timesteps))):
+    x, x0 = sample_step(model, step_rng, x, jax_utils.replicate(t), x0)
     list_x0.append(x0)
   # normalize to [0,1]
   img = unnormalize_to_zero_to_one(jnp.asarray(x0))
