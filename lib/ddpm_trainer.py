@@ -179,7 +179,7 @@ def _sample_step(state, vertices, features, key, ddpm_params, t):
 def _sample_jit(state, imagery, ddpm_params, key):
   (T,) = ddpm_params["betas"].shape
   init_key, sample_key = jax.random.split(key)
-  sample_keys = jax.random.split(sample_key, T)
+  sample_keys = jax.random.split(sample_key, T - 1)
   B, *_ = imagery.shape
   x = jax.random.normal(init_key, [B, 128, 2])
   features = None
@@ -189,7 +189,7 @@ def _sample_jit(state, imagery, ddpm_params, key):
     key, t = key_t
     return _sample_step(state, x, features, key, ddpm_params, t)
 
-  _, steps = jax.lax.scan(scan_step, x, (sample_keys, jnp.arange(T)[::-1]))
+  _, steps = jax.lax.scan(scan_step, x, (sample_keys, jnp.arange(1, T)[::-1]))
 
   # sample step
   return {"prediction": steps[-1], "steps": steps}
