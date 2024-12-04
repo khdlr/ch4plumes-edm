@@ -22,7 +22,7 @@ def main() -> None:
   train_loader = get_loader(config.batch_size, "train")
   val_loader = get_loader(4, "val")
 
-  wandb.init(project="COBRA Zakynthos", config=config, name=run_name)
+  wandb.init(project="COBRA Diffusion Test", config=config, name=run_name)
 
   assert wandb.run is not None
   config.wandb_id = wandb.run.id
@@ -34,21 +34,22 @@ def main() -> None:
   for epoch in range(1, 501):
     wandb.log({"epoch": epoch}, step=epoch)
     trn_metrics = defaultdict(list)
-    for batch in tqdm(train_loader, desc=f"Trn {epoch:3d}"):
-      metrics = trainer.train_step(batch)
+    # for batch in tqdm(train_loader, desc=f"Trn {epoch:3d}"):
+    for _ in tqdm(range(1000), desc=f"Trn {epoch:3d}"):
+      metrics = trainer.train_step()
       for k, v in metrics.items():
         trn_metrics[k].append(v)
 
     logging.log_metrics(trn_metrics, "trn", epoch)
 
-    if epoch % 50 != 0:
+    if epoch % 5 != 0:
       continue
 
     trainer.save_state((run_dir / f"{epoch}.ckpt").absolute())
 
     trainer.val_key = jax.random.PRNGKey(0)  # Re-seed val key
     val_metrics = defaultdict(list)
-    for batch in tqdm(val_loader, desc=f"Val {epoch:3d}"):
+    for i, batch in enumerate(tqdm(val_loader, desc=f"Val {epoch:3d}")):
       B, H, W, C = batch["image"].shape
       predictions = []
       for _ in range(5):
@@ -62,6 +63,8 @@ def main() -> None:
       filename = batch["filename"][0].decode("utf8").removesuffix(".tif")
       name = f"{batch['year'][0]}_{filename}"
       logging.log_anim_multi(out, f"Animated/{name}", epoch)
+      if i > 2:
+        break
     logging.log_metrics(val_metrics, "val", epoch)
 
 

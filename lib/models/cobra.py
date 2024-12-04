@@ -20,7 +20,7 @@ class COBRA(nnx.Module):
     self.model_dim = config.model_dim
     self.iterations = config.iterations
     self.vertices = config.vertices
-    self.head = snake_utils.SnakeHead(576, self.model_dim, rngs=rngs)
+    self.head = SnakeHead(576, self.model_dim, rngs=rngs)
     self.dropout = nn.ChannelDropout(rngs=rngs)
     self.rngs = rngs
 
@@ -39,7 +39,46 @@ class COBRA(nnx.Module):
 
     return {"snake_steps": steps, "snake": vertices}
 
-  def ddpm_forward(self, imagery, vertices):
-    "Get snake head output when already given some vertices, useful for DDPM training"
-    features = self.backbone(imagery, dropout_rate=0.0)
-    return self.head(vertices, features)
+
+class SnakeHead(nnx.Module):
+  def __init__(self, d_in, d_hidden, *, rngs: nnx.Rngs):
+    super().__init__()
+
+    D = d_in
+    C = d_hidden
+
+    self.init_coords = nnx.Conv(2, C, [1], rngs=rngs)
+    self.init_features = nnx.Conv(D, C, [1], use_bias=False, rngs=rngs)
+
+    self.blocks = [
+      nnx.Conv(C, C, [3], rngs=rngs),
+      nnx.Conv(C, C, [3], kernel_dilation=3, rngs=rngs),
+      nnx.Conv(C, C, [3], kernel_dilation=9, rngs=rngs),
+      nnx.Conv(C, C, [3], kernel_dilation=9, rngs=rngs),
+      nnx.Conv(C, C, [3], kernel_dilation=3, rngs=rngs),
+      nnx.Conv(C, C, [3], rngs=rngs),
+    ]
+
+    # Initialize offset predictor with 0 -> default to no change
+    self.mk_offset = nnx.Conv(
+      C, 2, [1], use_bias=False, kernel_init=nnx.initializers.zeros, rngs=rngs
+    )
+
+    self.dropout = nn.ChannelDropout(rngs=rngs)
+
+  def __call__(self, vertices, features, *, dropout_rate=0.0):
+    # Start with coord features
+    x = self.init_coords(vertices)
+    # Conditioning is optional
+    if features is not None:
+      vertex_features = []
+      for feature_map in features:
+        feat = jax.vmap(snake_utils.sample_at_vertices, [0, 0])(vertices, feature_map)
+        feat = self.dropout(feat, dropout_rate=dropout_rate)
+        vertex_features.append(feat)
+      x += self.init_features(jnp.concatenate(vertex_features, axis=-1))
+
+    for block in self.blocks:
+      x = jax.nn.relu(block(x))
+    offsets = self.mk_offset(x)
+    return offsets

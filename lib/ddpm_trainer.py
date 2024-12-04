@@ -3,13 +3,13 @@ import jax.numpy as jnp
 import optax
 import orbax.checkpoint as ocp
 from flax import nnx
+from functools import partial
 
 from . import losses
 from .config_mod import config
 from .models import COBRA
+from .models.snake_utils import random_bezier
 from .utils import prep
-
-from tqdm import tqdm
 
 ddpm_betas = []
 
@@ -65,11 +65,12 @@ class DDPMTrainer:
       # "p2_loss_weight": p2_loss_weight,
     }
 
-  def train_step(self, batch):
+  def train_step(self):
     self.state.model.train()
     self.trn_key, key = jax.random.split(self.trn_key)
-    data = (batch["image"], batch["dem"], batch["contour"])
-    return _train_step_jit(self.state, data, key, self.loss_fn, self.ddpm_params)
+    # data = (batch["image"], batch["dem"], batch["contour"])
+    # return _train_step_jit(self.state, data, key, self.loss_fn, self.ddpm_params)
+    return _train_step_jit(self.state, key, self.loss_fn, self.ddpm_params)
 
   def test_step(self, batch):
     self.state.model.eval()
@@ -112,11 +113,12 @@ class DDPMTrainer:
 # Adapted from https://github.com/yiyixuxu/denoising-diffusion-flax/blob/main/denoising_diffusion_flax/train.py
 # Original Author: YiYi Xu (https://github.com/yiyixuxu)
 @nnx.jit
-def _train_step_jit(state, batch, key, loss_fn, ddpm_params):
+def _train_step_jit(state, key, loss_fn, ddpm_params):
   aug_key, t_key, noise_key = jax.random.split(key, 3)
-  img, contour = prep(batch, aug_key)
-  B, H, W, C = img.shape
-  B, V, _ = contour.shape
+  # img, contour = prep(batch, aug_key)
+  B = config.batch_size
+  keys = jax.random.split(aug_key, B)
+  contour = jax.vmap(partial(random_bezier, vertices=128))(keys)
 
   batched_t = jax.random.randint(
     t_key, shape=(B,), dtype=jnp.int32, minval=0, maxval=len(ddpm_betas)
@@ -129,9 +131,10 @@ def _train_step_jit(state, batch, key, loss_fn, ddpm_params):
 
   # TODO: Check conditioning code in https://github.com/yiyixuxu/denoising-diffusion-flax/blob/main/denoising_diffusion_flax/train.py#L266C1-L266C23
   def get_loss(model):
-    pred = model.ddpm_forward(img, x_t)
+    # features = model.backbone(img)
+    pred = model.head(x_t, features=None)
     terms = {"contour": contour, "snake": pred}
-    loss, metrics = loss_fn(terms, metric_scale=img.shape[1] / 2)
+    loss, metrics = loss_fn(terms, metric_scale=1)
     metrics["loss"] = loss
     return loss, metrics
 
@@ -179,7 +182,8 @@ def _sample_jit(state, imagery, ddpm_params, key):
   sample_keys = jax.random.split(sample_key, T)
   B, *_ = imagery.shape
   x = jax.random.normal(init_key, [B, 128, 2])
-  features = jax.jit(state.model.backbone)(imagery)
+  features = None
+  # features = jax.jit(state.model.backbone)(imagery)
 
   def scan_step(x, key_t):
     key, t = key_t
