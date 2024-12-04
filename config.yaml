@@ -9,4 +9,4 @@ seed: 27
 loss_function: Huber
 loss_stepwise: true
 ### Data args
-batch_size: 16
+batch_size: 128

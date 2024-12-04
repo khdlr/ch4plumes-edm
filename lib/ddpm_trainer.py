@@ -81,7 +81,7 @@ class DDPMTrainer:
     terms = {
       "contour": contour,
       "snake": sampling_terms["prediction"],
-      "snake_steps": sampling_terms["steps"],
+      "snake_steps": list(sampling_terms["steps"][::20]),
     }
     loss, metrics = jax.jit(self.loss_fn)(terms, metric_scale=img.shape[1] / 2)
     metrics["loss"] = loss
@@ -109,25 +109,6 @@ class DDPMTrainer:
     self.checkpointer.save(path, state)
 
 
-@nnx.jit
-def _sample_jit(state, imagery, ddpm_params, key):
-  (T,) = ddpm_params["betas"].shape
-  init_key, sample_key = jax.random.split(key)
-  sample_keys = jax.random.split(sample_key, T)
-  B, *_ = imagery.shape
-  x = jax.random.normal(init_key, [B, 128, 2])
-  features = jax.jit(state.model.backbone)(imagery)
-
-  def scan_step(x, key_t):
-    key, t = key_t
-    return _sample_step(state, x, features, key, ddpm_params, t)
-
-  _, steps = jax.lax.scan(scan_step, x, (sample_keys, jnp.arange(T)[::-1]))
-
-  # sample step
-  return {"prediction": steps[-1], "steps": steps}
-
-
 # Adapted from https://github.com/yiyixuxu/denoising-diffusion-flax/blob/main/denoising_diffusion_flax/train.py
 # Original Author: YiYi Xu (https://github.com/yiyixuxu)
 @nnx.jit
@@ -140,7 +121,7 @@ def _train_step_jit(state, batch, key, loss_fn, ddpm_params):
   batched_t = jax.random.randint(
     t_key, shape=(B,), dtype=jnp.int32, minval=0, maxval=len(ddpm_betas)
   )
-  target = noise = jax.random.normal(noise_key, contour.shape)
+  noise = jax.random.normal(noise_key, contour.shape)
 
   sqrt_alpha_bar = ddpm_params["sqrt_alphas_bar"][batched_t, None, None]
   sqrt_1m_alpha_bar = ddpm_params["sqrt_1m_alphas_bar"][batched_t, None, None]
@@ -188,4 +169,23 @@ def _sample_step(state, vertices, features, key, ddpm_params, t):
     key, x0.shape
   )
 
-  return x, x0
+  return x, x
+
+
+@nnx.jit
+def _sample_jit(state, imagery, ddpm_params, key):
+  (T,) = ddpm_params["betas"].shape
+  init_key, sample_key = jax.random.split(key)
+  sample_keys = jax.random.split(sample_key, T)
+  B, *_ = imagery.shape
+  x = jax.random.normal(init_key, [B, 128, 2])
+  features = jax.jit(state.model.backbone)(imagery)
+
+  def scan_step(x, key_t):
+    key, t = key_t
+    return _sample_step(state, x, features, key, ddpm_params, t)
+
+  _, steps = jax.lax.scan(scan_step, x, (sample_keys, jnp.arange(T)[::-1]))
+
+  # sample step
+  return {"prediction": steps[-1], "steps": steps}

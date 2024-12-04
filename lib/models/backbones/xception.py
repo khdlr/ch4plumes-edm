@@ -9,6 +9,15 @@ from .. import nnutils as nn
 
 
 class Xception(nnx.Module):
+  def __init__(self, c_in, *, rngs: nnx.Rngs):
+    pass
+
+  def __call__(self, x, dropout_rate=0.0):
+    B, H, W, C = x.shape
+    return [jnp.zeros([B, H // 16, W // 16, 64]), jnp.zeros([B, H // 4, W // 4, 512])]
+
+
+class TrueXception(nnx.Module):
   """Xception backbone like the one used in CALFIN"""
 
   def __init__(self, c_in, *, rngs: nnx.Rngs):
@@ -58,6 +67,9 @@ class Xception(nnx.Module):
 
     x = dropout(self.final(x))
     skip3 = dropout(self.skip_final(skip3))
+
+    print(x.shape)
+    print(skip3.shape)
     return [skip3, x]
 
 
