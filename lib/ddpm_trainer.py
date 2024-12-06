@@ -125,7 +125,7 @@ def _train_step_jit(state, key, loss_fn, ddpm_params):
   def get_loss(model):
     # features = model.backbone(img)
     pred = model.head(x_t, features=None)
-    terms = {"contour": noise, "snake": pred}
+    terms = {"contour": contour, "snake": pred}
     loss, metrics = loss_fn(terms, metric_scale=1)
     metrics["loss"] = loss
     return loss, metrics
@@ -140,11 +140,12 @@ def _sample_step(state, vertices, features, key, ddpm_params, t):
   batched_t = jnp.ones((vertices.shape[0],), dtype=jnp.int32) * t
 
   pred = state.model.head(vertices, features)
+  noise_pred = x0_to_noise(pred, vertices, batched_t, ddpm_params)
 
   # Recover x0
   sqrt_alpha_bar = ddpm_params["sqrt_alphas_bar"][batched_t, None, None]
   alpha_bar = ddpm_params["alphas_bar"][batched_t, None, None]
-  x0 = 1.0 / sqrt_alpha_bar * vertices - jnp.sqrt(1.0 / alpha_bar - 1) * pred
+  x0 = 1.0 / sqrt_alpha_bar * vertices - jnp.sqrt(1.0 / alpha_bar - 1) * noise_pred
   x0 = jnp.clip(x0, -1.0, 1.0)
 
   beta = ddpm_params["betas"][batched_t, None, None]
@@ -181,3 +182,13 @@ def _sample_jit(state, imagery, ddpm_params, key):
 
   # sample step
   return {"prediction": steps[-1], "steps": steps}
+
+
+def x0_to_noise(x0, xt, batched_t, ddpm):
+  assert (
+    batched_t.shape[0] == xt.shape[0] == x0.shape[0]
+  )  # make sure all has batch dimension
+  sqrt_alpha_bar = ddpm["sqrt_alphas_bar"][batched_t, None, None]
+  alpha_bar = ddpm["alphas_bar"][batched_t, None, None]
+  noise = (1.0 / sqrt_alpha_bar * xt - x0) / jnp.sqrt(1.0 / alpha_bar - 1)
+  return noise
