@@ -48,14 +48,20 @@ class SnakeHead(nnx.Module):
     D = d_in
     C = d_hidden
 
-    self.init_coords = nnx.Conv(2, C, [1], rngs=rngs)
-    self.init_features = nnx.Conv(D, C, [1], use_bias=False, rngs=rngs)
+    self.init_coords = nnx.Conv(2, C, [4], strides=4, rngs=rngs)
+    self.init_features = nnx.Conv(D, C, [4], strides=4, use_bias=False, rngs=rngs)
 
     self.model = Transformer(d_hidden, blocks, rngs=rngs)
 
     # Initialize offset predictor with 0 -> default to no change
-    self.mk_offset = nnx.Conv(
-      C, 2, [1], use_bias=False, kernel_init=nnx.initializers.zeros, rngs=rngs
+    self.mk_offset = nnx.ConvTranspose(
+      C,
+      2,
+      [4],
+      strides=4,
+      use_bias=False,
+      kernel_init=nnx.initializers.zeros,
+      rngs=rngs,
     )
 
     self.dropout = nn.ChannelDropout(rngs=rngs)

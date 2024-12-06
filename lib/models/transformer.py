@@ -81,17 +81,21 @@ class MLP(nnx.Module):
     # self.dropout = nnx.Dropout(rngs=rngs)
 
   def __call__(self, x):
-    h1 = jnp.einsum("bse,eh->bsh", x, self.Win1)
-    h2 = jnp.einsum("bse,eh->bsh", x, self.Win2)
+    h1 = jnp.einsum("bse,eh->bsh", x, self.Win1.value)
+    h2 = jnp.einsum("bse,eh->bsh", x, self.Win2.value)
     h = jax.nn.gelu(h1) * h2
-    o = jnp.einsum("bsh,he->bse", h, self.Wout)
+    o = jnp.einsum("bsh,he->bse", h, self.Wout.value)
     return o
 
 
 class TransformerBlock(nnx.Module):
   def __init__(self, embed_dim, hidden_dim, *, rngs: nnx.Rngs):
     self.attn = nnx.MultiHeadAttention(
-      num_heads=8, in_features=embed_dim, qkv_features=embed_dim, rngs=rngs
+      num_heads=8,
+      in_features=embed_dim,
+      qkv_features=embed_dim,
+      rngs=rngs,
+      decode=False,
     )
     self.mlp = MLP(embed_dim, hidden_dim, rngs=rngs)
     self.scale1 = nnx.Param(jnp.ones((embed_dim,)))
