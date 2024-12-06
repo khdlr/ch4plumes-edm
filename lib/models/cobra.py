@@ -42,7 +42,7 @@ class COBRA(nnx.Module):
 
 
 class SnakeHead(nnx.Module):
-  def __init__(self, d_in, d_hidden, n_blocks, *, rngs: nnx.Rngs):
+  def __init__(self, d_in, d_hidden, blocks, *, rngs: nnx.Rngs):
     super().__init__()
 
     D = d_in
@@ -51,7 +51,7 @@ class SnakeHead(nnx.Module):
     self.init_coords = nnx.Conv(2, C, [1], rngs=rngs)
     self.init_features = nnx.Conv(D, C, [1], use_bias=False, rngs=rngs)
 
-    self.model = Transformer(d_hidden, n_blocks)
+    self.model = Transformer(d_hidden, blocks, rngs=rngs)
 
     # Initialize offset predictor with 0 -> default to no change
     self.mk_offset = nnx.Conv(
