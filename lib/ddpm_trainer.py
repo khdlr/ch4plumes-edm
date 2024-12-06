@@ -20,7 +20,7 @@ class DDPMTrainer:
     model_rngs = nnx.Rngs(init_key)
     model = COBRA(config.model, rngs=model_rngs)
     model.train()
-    opt = optax.chain(optax.clip(1.0), optax.adam(1e-3))
+    opt = optax.chain(optax.clip(1.0), optax.adam(1e-4, b1=0.9, b2=0.99))
     self.state = nnx.Optimizer(model, opt)
 
     self.loss_fn = getattr(losses, config.loss_function)()
