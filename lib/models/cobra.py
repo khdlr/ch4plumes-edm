@@ -6,6 +6,7 @@ from flax import nnx
 from . import backbones
 from . import nnutils as nn
 from . import snake_utils
+from .transformer import Transformer
 
 
 class COBRA(nnx.Module):
@@ -20,7 +21,7 @@ class COBRA(nnx.Module):
     self.model_dim = config.model_dim
     self.iterations = config.iterations
     self.vertices = config.vertices
-    self.head = SnakeHead(576, self.model_dim, rngs=rngs)
+    self.head = SnakeHead(576, self.model_dim, config.blocks, rngs=rngs)
     self.dropout = nn.ChannelDropout(rngs=rngs)
     self.rngs = rngs
 
@@ -41,7 +42,7 @@ class COBRA(nnx.Module):
 
 
 class SnakeHead(nnx.Module):
-  def __init__(self, d_in, d_hidden, *, rngs: nnx.Rngs):
+  def __init__(self, d_in, d_hidden, n_blocks, *, rngs: nnx.Rngs):
     super().__init__()
 
     D = d_in
@@ -50,14 +51,7 @@ class SnakeHead(nnx.Module):
     self.init_coords = nnx.Conv(2, C, [1], rngs=rngs)
     self.init_features = nnx.Conv(D, C, [1], use_bias=False, rngs=rngs)
 
-    self.blocks = [
-      nnx.Conv(C, C, [3], rngs=rngs),
-      nnx.Conv(C, C, [3], kernel_dilation=3, rngs=rngs),
-      nnx.Conv(C, C, [3], kernel_dilation=9, rngs=rngs),
-      nnx.Conv(C, C, [3], kernel_dilation=9, rngs=rngs),
-      nnx.Conv(C, C, [3], kernel_dilation=3, rngs=rngs),
-      nnx.Conv(C, C, [3], rngs=rngs),
-    ]
+    self.model = Transformer(d_hidden, n_blocks)
 
     # Initialize offset predictor with 0 -> default to no change
     self.mk_offset = nnx.Conv(
@@ -77,8 +71,11 @@ class SnakeHead(nnx.Module):
         feat = self.dropout(feat, dropout_rate=dropout_rate)
         vertex_features.append(feat)
       x += self.init_features(jnp.concatenate(vertex_features, axis=-1))
+    x = jax.nn.silu(x)
 
-    for block in self.blocks:
-      x = jax.nn.relu(block(x))
+    x = self.model(x)
+
     offsets = self.mk_offset(x)
+    # jax.debug.print("Init: {} – Pred: {}", jnp.abs(x).mean(), jnp.abs(offsets).mean())
+
     return offsets

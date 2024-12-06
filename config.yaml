@@ -1,7 +1,8 @@
 ### Model Specification
 model:
   backbone: Xception
-  model_dim: 1024
+  model_dim: 512
+  blocks: 6
   iterations: 5
   vertices: 128
 ### Training configuration
@@ -9,4 +10,4 @@ seed: 27
 loss_function: Huber
 loss_stepwise: true
 ### Data args
-batch_size: 16
+batch_size: 128

@@ -8,6 +8,7 @@ from pyrallis.argparsing import parse
 class ModelConfig:
   backbone: str
   model_dim: int
+  blocks: int
   iterations: int
   vertices: int
 

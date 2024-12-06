@@ -14,14 +14,6 @@ from .utils import prep
 ddpm_betas = []
 
 
-def q_sample(x, t, noise, ddpm_params):
-  sqrt_alpha_bar = ddpm_params["sqrt_alphas_bar"][t, None, None, None]
-  sqrt_1m_alpha_bar = ddpm_params["sqrt_1m_alphas_bar"][t, None, None, None]
-  x_t = sqrt_alpha_bar * x + sqrt_1m_alpha_bar * noise
-
-  return x_t
-
-
 class DDPMTrainer:
   def __init__(self, key):
     init_key, self.trn_key, self.val_key = jax.random.split(key, 3)
@@ -133,7 +125,7 @@ def _train_step_jit(state, key, loss_fn, ddpm_params):
   def get_loss(model):
     # features = model.backbone(img)
     pred = model.head(x_t, features=None)
-    terms = {"contour": contour, "snake": pred}
+    terms = {"contour": noise, "snake": pred}
     loss, metrics = loss_fn(terms, metric_scale=1)
     metrics["loss"] = loss
     return loss, metrics
@@ -166,11 +158,7 @@ def _sample_step(state, vertices, features, key, ddpm_params, t):
   posterior_mean = coef_x0 * x0 + coef_xt * vertices
 
   posterior_variance = beta * (1 - alpha_bar_last) / (1.0 - alpha_bar)
-  posterior_log_variance = jnp.log(jnp.clip(posterior_variance, a_min=1e-20))
-
-  x = posterior_mean + jnp.exp(0.5 * posterior_log_variance) * jax.random.normal(
-    key, x0.shape
-  )
+  x = posterior_mean + jnp.sqrt(posterior_variance) * jax.random.normal(key, x0.shape)
 
   return x, x
 

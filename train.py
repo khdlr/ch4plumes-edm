@@ -1,9 +1,11 @@
 from pathlib import Path
 
+from functools import partial
 from data_loading import get_loader
 import yaml
 
 import jax
+import jax.numpy as jnp
 from flax import nnx
 import numpy as np
 from collections import defaultdict
@@ -11,6 +13,7 @@ import wandb
 from tqdm import tqdm
 
 from lib import logging, config, Trainer, DDPMTrainer
+from lib.models.snake_utils import random_bezier
 
 jax.config.update("jax_numpy_rank_promotion", "raise")
 
@@ -51,8 +54,9 @@ def main() -> None:
     val_metrics = defaultdict(list)
     for i, batch in enumerate(tqdm(val_loader, desc=f"Val {epoch:3d}")):
       B, H, W, C = batch["image"].shape
+      batch["image"] = jnp.ones_like(batch["image"]) * 255
       predictions = []
-      for _ in range(5):
+      for _ in range(1):
         out, metrics = trainer.test_step(batch)
         out = jax.tree.map(lambda x: (x + 1) * (H / 2), out)
         out.update(batch)
