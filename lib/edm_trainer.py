@@ -124,12 +124,11 @@ def _train_step_jit(state, batch, key, loss_fn, edm_params):
     metrics["loss_cond"] = loss_cond
 
     # Unconditional Generation
-    # predictor = partial(model.head, features=None)
-    # D_yn_u = jax.vmap(predictor)(contour + noise)  # TODO: sigma input
-    # loss_uncond = jnp.mean(weight_u * ((D_yn_u - contour) ** 2))
-    # metrics["loss_uncond"] = loss_uncond
-    # metrics["loss"] = loss_cond + loss_uncond
-    metrics["loss"] = loss_cond
+    predictor = partial(model.head, features=None)
+    D_yn_u = jax.vmap(predictor)(contour + noise)  # TODO: sigma input
+    loss_uncond = jnp.mean(weight_u * ((D_yn_u - contour) ** 2))
+    metrics["loss_uncond"] = loss_uncond
+    metrics["loss"] = loss_cond + loss_uncond
     # Unconditional Generation
     return metrics["loss"], metrics
 
