@@ -10,5 +10,5 @@ seed: 27
 loss_function: Huber
 loss_stepwise: true
 ### Data args
-batch_size: 32
+batch_size: 8
 samples_per_image: 8

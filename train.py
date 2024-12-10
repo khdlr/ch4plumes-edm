@@ -50,8 +50,27 @@ def main() -> None:
     trainer.save_state((run_dir / f"{epoch}.ckpt").absolute())
 
     trainer.val_key = jax.random.PRNGKey(0)  # Re-seed val key
+    for i, batch in enumerate(
+      tqdm(train_loader, desc=f"Trn Sampling {epoch:3d}", ncols=80, total=4)
+    ):
+      B, H, W, C = batch["image"].shape
+      predictions = []
+      for _ in range(5):
+        out, metrics = trainer.test_step(batch)
+        out = jax.tree.map(lambda x: (x + 1) * (H / 2), out)
+        out.update(batch)
+        predictions.append(jax.tree.map(lambda x: x[0], out))
+      out = {k: np.stack([p[k] for p in predictions]) for k in predictions[0]}
+      filename = batch["filename"][0].decode("utf8").removesuffix(".tif")
+      name = f"{batch['year'][0]}_{filename}"
+      logging.log_anim_multi(out, f"TrnAnim/{i}", epoch)
+      if i >= 3:
+        break
+
     val_metrics = defaultdict(list)
-    for i, batch in enumerate(tqdm(val_loader, desc=f"Val {epoch:3d}", ncols=80)):
+    for i, batch in enumerate(
+      tqdm(val_loader, desc=f"Val {epoch:3d}", ncols=80, total=8),
+    ):
       B, H, W, C = batch["image"].shape
       predictions = []
       for _ in range(5):
@@ -65,7 +84,7 @@ def main() -> None:
       filename = batch["filename"][0].decode("utf8").removesuffix(".tif")
       name = f"{batch['year'][0]}_{filename}"
       logging.log_anim_multi(out, f"Animated/{name}", epoch)
-      if i > 8:
+      if i >= 8:
         break
     logging.log_metrics(val_metrics, "val", epoch)
 

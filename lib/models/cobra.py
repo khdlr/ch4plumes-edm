@@ -22,7 +22,7 @@ class COBRA(nnx.Module):
     self.model_dim = config.model_dim
     self.iterations = config.iterations
     self.vertices = config.vertices
-    self.head = SnakeHead(576, self.model_dim, config.blocks, rngs=rngs)
+    self.head = SnakeHead(1024 + 128, self.model_dim, config.blocks, rngs=rngs)
     self.dropout = nn.ChannelDropout(rngs=rngs)
     self.rngs = rngs
 
