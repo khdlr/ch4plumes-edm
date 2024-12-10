@@ -192,8 +192,7 @@ def _sample_jit(state, imagery, edm_params, key):
   x_init = jax.random.normal(init_key, [B, 128, 2])
 
   sample_keys = jax.random.split(sample_key, num_steps)
-  features = None
-  # features = jax.jit(state.model.backbone)(imagery)
+  features = jax.jit(state.model.backbone)(imagery)
 
   def scan_step(x, key_ts_do_2nd):
     return _sample_step(state, x, features, key_ts_do_2nd, edm_params)
