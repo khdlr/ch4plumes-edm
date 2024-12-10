@@ -67,7 +67,7 @@ class SnakeHead(nnx.Module):
     )
 
     self.dropout = nn.ChannelDropout(rngs=rngs)
-    self.condition_scale = nnx.Param(jnp.zeros(()))
+    self.condition_gate = nnx.Param(-2 * jnp.ones(()))
 
   def __call__(self, vertices, features, *, dropout_rate=0.0):
     # Start with coord features
@@ -79,9 +79,8 @@ class SnakeHead(nnx.Module):
         feat = jax.vmap(snake_utils.sample_at_vertices, [0, 0])(vertices, feature_map)
         feat = self.dropout(feat, dropout_rate=dropout_rate)
         vertex_features.append(feat)
-      x += self.condition_scale.value * self.init_features(
-        jnp.concatenate(vertex_features, axis=-1)
-      )
+      gate = jax.nn.sigmoid(self.condition_gate.value)
+      x += gate * self.init_features(jnp.concatenate(vertex_features, axis=-1))
     x = jax.nn.silu(x)
 
     x = self.model(x)

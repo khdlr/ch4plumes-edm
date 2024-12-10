@@ -49,6 +49,7 @@ def prep(batch, key=None, augment=False, input_types=None):
   subkeys = jax.random.split(key, batch[0].shape[0])
   transformation = jax.vmap(chain)
   outputs = list(transformation(subkeys, batch))
+  outputs[1] = outputs[1] / 300
   outputs = [
     # Stack img and dem
     jnp.concatenate([outputs[0], outputs[1]], axis=-1),
