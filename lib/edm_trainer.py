@@ -95,9 +95,10 @@ def _train_step_jit(state, batch, key, loss_fn, edm_params):
   aug_key, t_key, noise_key = jax.random.split(key, 3)
   img, contour = prep(batch, aug_key)
   B = config.batch_size
-  keys = jax.random.split(aug_key, B)
+  S = config.samples_per_image
 
-  rnd_normal = jax.random.normal(t_key, shape=(B, 1, 1))
+  rnd_normal = jax.random.normal(t_key, shape=(S, B, 1, 1))
+  contour = repeat(contour, "B T C -> S B T C", S=S)
   sigma = jnp.exp(rnd_normal * edm_params["P_std"] + edm_params["P_mean"])
   weight = (sigma**2 + edm_params["sigma_data"] ** 2) / (
     sigma * edm_params["sigma_data"]
@@ -107,7 +108,11 @@ def _train_step_jit(state, batch, key, loss_fn, edm_params):
   # TODO: Check conditioning code in https://github.com/yiyixuxu/denoising-diffusion-flax/blob/main/denoising_diffusion_flax/train.py#L266C1-L266C23
   def get_loss(model):
     # features = model.backbone(img)
-    D_yn = model.head(contour + noise, features=None)  # TODO: sigma input
+    features = None
+    predictor = partial(model.head, features=features)
+    D_yn = jax.vmap(predictor)(contour + noise)  # TODO: sigma input
+    print("contour", contour.shape)
+    print("D_yn", D_yn.shape)
     loss = jnp.mean(weight * ((D_yn - contour) ** 2))
     terms = {"contour": contour, "snake": D_yn}
     _, metrics = loss_fn(terms, metric_scale=1)

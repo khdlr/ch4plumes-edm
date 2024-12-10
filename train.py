@@ -53,7 +53,6 @@ def main() -> None:
     val_metrics = defaultdict(list)
     for i, batch in enumerate(tqdm(val_loader, desc=f"Val {epoch:3d}")):
       B, H, W, C = batch["image"].shape
-      batch["image"] = jnp.ones_like(batch["image"]) * 255
       predictions = []
       for _ in range(1):
         out, metrics = trainer.test_step(batch)

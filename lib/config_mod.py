@@ -22,6 +22,7 @@ class Config:
   loss_function: str
   loss_stepwise: bool
   batch_size: int
+  samples_per_image: int
   seed: int
   wandb_id: str = ""
 

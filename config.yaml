@@ -11,3 +11,4 @@ loss_function: Huber
 loss_stepwise: true
 ### Data args
 batch_size: 32
+samples_per_image: 32
