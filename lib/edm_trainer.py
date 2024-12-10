@@ -44,12 +44,11 @@ class EDMTrainer:
       "S_noise": 1.0,
     }
 
-  def train_step(self):
+  def train_step(self, batch):
     self.state.model.train()
     self.trn_key, key = jax.random.split(self.trn_key)
-    # data = (batch["image"], batch["dem"], batch["contour"])
-    # return _train_step_jit(self.state, data, key, self.loss_fn, self.ddpm_params)
-    return _train_step_jit(self.state, key, self.loss_fn, self.edm_params)
+    data = (batch["image"], batch["dem"], batch["contour"])
+    return _train_step_jit(self.state, data, key, self.loss_fn, self.edm_params)
 
   def test_step(self, batch):
     self.state.model.eval()
@@ -92,12 +91,11 @@ class EDMTrainer:
 # Adapted from https://github.com/yiyixuxu/denoising-diffusion-flax/blob/main/denoising_diffusion_flax/train.py
 # Original Author: YiYi Xu (https://github.com/yiyixuxu)
 @nnx.jit
-def _train_step_jit(state, key, loss_fn, edm_params):
+def _train_step_jit(state, batch, key, loss_fn, edm_params):
   aug_key, t_key, noise_key = jax.random.split(key, 3)
-  # img, contour = prep(batch, aug_key)
+  img, contour = prep(batch, aug_key)
   B = config.batch_size
   keys = jax.random.split(aug_key, B)
-  contour = jax.vmap(partial(random_bezier, vertices=128))(keys)
 
   rnd_normal = jax.random.normal(t_key, shape=(B, 1, 1))
   sigma = jnp.exp(rnd_normal * edm_params["P_std"] + edm_params["P_mean"])

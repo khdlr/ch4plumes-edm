@@ -37,9 +37,8 @@ def main() -> None:
   for epoch in range(1, 501):
     wandb.log({"epoch": epoch}, step=epoch)
     trn_metrics = defaultdict(list)
-    # for batch in tqdm(train_loader, desc=f"Trn {epoch:3d}"):
-    for _ in tqdm(range(1000), desc=f"Trn {epoch:3d}"):
-      metrics = trainer.train_step()
+    for batch in tqdm(train_loader, desc=f"Trn {epoch:3d}"):
+      metrics = trainer.train_step(batch)
       for k, v in metrics.items():
         trn_metrics[k].append(v)
 
