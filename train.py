@@ -54,7 +54,7 @@ def main() -> None:
     for i, batch in enumerate(tqdm(val_loader, desc=f"Val {epoch:3d}")):
       B, H, W, C = batch["image"].shape
       predictions = []
-      for _ in range(1):
+      for _ in range(5):
         out, metrics = trainer.test_step(batch)
         out = jax.tree.map(lambda x: (x + 1) * (H / 2), out)
         out.update(batch)
@@ -65,7 +65,7 @@ def main() -> None:
       filename = batch["filename"][0].decode("utf8").removesuffix(".tif")
       name = f"{batch['year'][0]}_{filename}"
       logging.log_anim_multi(out, f"Animated/{name}", epoch)
-      if i > 2:
+      if i > 8:
         break
     logging.log_metrics(val_metrics, "val", epoch)
 
