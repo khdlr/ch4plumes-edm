@@ -7,6 +7,7 @@ from . import backbones
 from . import nnutils as nn
 from . import snake_utils
 from .transformer import Transformer
+from .unet1d import UNet1D
 
 
 class COBRA(nnx.Module):
@@ -51,7 +52,8 @@ class SnakeHead(nnx.Module):
     self.init_coords = nnx.Conv(2, C, [4], strides=4, rngs=rngs)
     self.init_features = nnx.Conv(D, C, [4], strides=4, use_bias=False, rngs=rngs)
 
-    self.model = Transformer(d_hidden, blocks, rngs=rngs)
+    # self.model = Transformer(d_hidden, blocks, rngs=rngs)
+    self.model = UNet1D(d_hidden, rngs=rngs)
 
     # Initialize offset predictor with 0 -> default to no change
     self.mk_offset = nnx.ConvTranspose(

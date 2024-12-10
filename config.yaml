@@ -1,7 +1,7 @@
 ### Model Specification
 model:
   backbone: Xception
-  model_dim: 512
+  model_dim: 128
   blocks: 6
   iterations: 5
   vertices: 128

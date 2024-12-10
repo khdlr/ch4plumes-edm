@@ -4,6 +4,7 @@ import optax
 import orbax.checkpoint as ocp
 from flax import nnx
 from functools import partial
+from einops import repeat
 
 from . import losses
 from .config_mod import config
@@ -31,7 +32,7 @@ class DDPMTrainer:
     self.checkpointer = ocp.PyTreeCheckpointer()
 
     self.n_vertices = config.model.vertices
-    self.timesteps = 200
+    self.timesteps = 1000
     # DDPM Params initialization taken from https://github.com/yiyixuxu/denoising-diffusion-flax/blob/main/denoising_diffusion_flax/utils.py
     # Original Author: YiYi Xu (https://github.com/yiyixuxu)
     s = 0.008
@@ -110,7 +111,15 @@ def _train_step_jit(state, key, loss_fn, ddpm_params):
   # img, contour = prep(batch, aug_key)
   B = config.batch_size
   keys = jax.random.split(aug_key, B)
-  contour = jax.vmap(partial(random_bezier, vertices=128))(keys)
+  # contour = jax.vmap(partial(random_bezier, vertices=128))(keys)
+  contour = jnp.stack(
+    [
+      0.7 * jnp.sin(jnp.linspace(0, 2 * jnp.pi, 128)),
+      0.7 * jnp.cos(jnp.linspace(0, 2 * jnp.pi, 128)),
+    ],
+    axis=-1,
+  )
+  contour = repeat(contour, "T C -> B T C", B=B)
 
   batched_t = jax.random.randint(
     t_key, shape=(B,), dtype=jnp.int32, minval=0, maxval=len(ddpm_betas)
@@ -159,7 +168,8 @@ def _sample_step(state, vertices, features, key, ddpm_params, t):
   posterior_mean = coef_x0 * x0 + coef_xt * vertices
 
   posterior_variance = beta * (1 - alpha_bar_last) / (1.0 - alpha_bar)
-  x = posterior_mean + jnp.sqrt(posterior_variance) * jax.random.normal(key, x0.shape)
+  # x = posterior_mean + jnp.sqrt(posterior_variance) * jax.random.normal(key, x0.shape)
+  x = posterior_mean
 
   return x, x
 
