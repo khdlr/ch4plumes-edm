@@ -8,6 +8,23 @@ from functools import partial
 from .. import nnutils as nn
 
 
+class CheapBackbone(nnx.Module):
+  def __init__(self, c_in, *, rngs: nnx.Rngs):
+    self.conv1 = nnx.Conv(c_in, 32, [2, 2], strides=[2, 2], rngs=rngs)
+    self.conv2 = nnx.Conv(32, 64, [2, 2], strides=[2, 2], rngs=rngs)
+    self.conv3 = nnx.Conv(64, 128, [2, 2], strides=[2, 2], rngs=rngs)
+    self.conv4 = nnx.Conv(128, 256, [2, 2], strides=[2, 2], rngs=rngs)
+    self.conv5 = nnx.Conv(256, 512, [2, 2], strides=[2, 2], rngs=rngs)
+
+  def __call__(self, x):
+    x = jax.nn.silu(self.conv1(x))
+    skip = x = jax.nn.silu(self.conv2(x))
+    x = jax.nn.silu(self.conv3(x))
+    x = jax.nn.silu(self.conv4(x))
+    x = jax.nn.silu(self.conv5(x))
+    return [skip, x]
+
+
 class Xception(nnx.Module):
   """Xception backbone like the one used in CALFIN"""
 

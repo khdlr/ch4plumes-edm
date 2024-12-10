@@ -112,7 +112,6 @@ def _train_step_jit(state, batch, key, loss_fn, edm_params):
   ) ** 2
   noise_u = jax.random.normal(noise_key_u, contour.shape) * sigma_u
 
-  # TODO: Check conditioning code in https://github.com/yiyixuxu/denoising-diffusion-flax/blob/main/denoising_diffusion_flax/train.py#L266C1-L266C23
   def get_loss(model):
     # Conditional Generation
     features = model.backbone(img)

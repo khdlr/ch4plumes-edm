@@ -1,1 +1,1 @@
-from .xception import Xception
+from .xception import Xception, CheapBackbone
