@@ -37,7 +37,7 @@ def main() -> None:
   for epoch in range(1, 501):
     wandb.log({"epoch": epoch}, step=epoch)
     trn_metrics = defaultdict(list)
-    for batch in tqdm(train_loader, desc=f"Trn {epoch:3d}"):
+    for batch in tqdm(train_loader, desc=f"Trn {epoch:3d}", ncols=80):
       metrics = trainer.train_step(batch)
       for k, v in metrics.items():
         trn_metrics[k].append(v)
@@ -51,7 +51,7 @@ def main() -> None:
 
     trainer.val_key = jax.random.PRNGKey(0)  # Re-seed val key
     val_metrics = defaultdict(list)
-    for i, batch in enumerate(tqdm(val_loader, desc=f"Val {epoch:3d}")):
+    for i, batch in enumerate(tqdm(val_loader, desc=f"Val {epoch:3d}", ncols=80)):
       B, H, W, C = batch["image"].shape
       predictions = []
       for _ in range(5):
