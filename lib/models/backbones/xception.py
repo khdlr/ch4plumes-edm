@@ -59,8 +59,6 @@ class Xception(nnx.Module):
     x = dropout(self.final(x))
     skip3 = dropout(self.skip_final(skip3))
 
-    print(x.shape)
-    print(skip3.shape)
     return [skip3, x]
 
 

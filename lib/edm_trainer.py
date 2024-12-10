@@ -94,7 +94,7 @@ class EDMTrainer:
 def _train_step_jit(state, batch, key, loss_fn, edm_params):
   aug_key, t_key, t_key_u, noise_key, noise_key_u = jax.random.split(key, 5)
   img, contour = prep(batch, aug_key)
-  B = config.batch_size
+  B = img.shape[0]
   S = config.samples_per_image
 
   rnd_normal = jax.random.normal(t_key, shape=(S, B, 1, 1))
@@ -126,8 +126,6 @@ def _train_step_jit(state, batch, key, loss_fn, edm_params):
     # Unconditional Generation
     # predictor = partial(model.head, features=None)
     # D_yn_u = jax.vmap(predictor)(contour + noise)  # TODO: sigma input
-    # loss_cond = jnp.mean(weight * ((D_yn_u - contour) ** 2))
-    # terms = {"contour": contour, "snake": D_yn_u}
     # loss_uncond = jnp.mean(weight_u * ((D_yn_u - contour) ** 2))
     # metrics["loss_uncond"] = loss_uncond
     # metrics["loss"] = loss_cond + loss_uncond
