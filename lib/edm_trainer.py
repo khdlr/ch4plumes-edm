@@ -92,12 +92,13 @@ class EDMTrainer:
 # Original Author: YiYi Xu (https://github.com/yiyixuxu)
 @nnx.jit
 def _train_step_jit(state, batch, key, loss_fn, edm_params):
-  aug_key, t_key, noise_key = jax.random.split(key, 3)
+  aug_key, t_key, t_key_u, noise_key, noise_key_u = jax.random.split(key, 5)
   img, contour = prep(batch, aug_key)
   B = config.batch_size
   S = config.samples_per_image
 
   rnd_normal = jax.random.normal(t_key, shape=(S, B, 1, 1))
+  rnd_normal_u = jax.random.normal(t_key_u, shape=(S, B, 1, 1))
   contour = repeat(contour, "B T C -> S B T C", S=S)
   sigma = jnp.exp(rnd_normal * edm_params["P_std"] + edm_params["P_mean"])
   weight = (sigma**2 + edm_params["sigma_data"] ** 2) / (
@@ -105,19 +106,34 @@ def _train_step_jit(state, batch, key, loss_fn, edm_params):
   ) ** 2
   noise = jax.random.normal(noise_key, contour.shape) * sigma
 
+  sigma_u = jnp.exp(rnd_normal_u * edm_params["P_std"] + edm_params["P_mean"])
+  weight_u = (sigma_u**2 + edm_params["sigma_data"] ** 2) / (
+    sigma_u * edm_params["sigma_data"]
+  ) ** 2
+  noise_u = jax.random.normal(noise_key_u, contour.shape) * sigma_u
+
   # TODO: Check conditioning code in https://github.com/yiyixuxu/denoising-diffusion-flax/blob/main/denoising_diffusion_flax/train.py#L266C1-L266C23
   def get_loss(model):
-    # features = model.backbone(img)
-    features = None
+    # Conditional Generation
+    features = model.backbone(img)
     predictor = partial(model.head, features=features)
     D_yn = jax.vmap(predictor)(contour + noise)  # TODO: sigma input
-    print("contour", contour.shape)
-    print("D_yn", D_yn.shape)
-    loss = jnp.mean(weight * ((D_yn - contour) ** 2))
+    loss_cond = jnp.mean(weight * ((D_yn - contour) ** 2))
     terms = {"contour": contour, "snake": D_yn}
     _, metrics = loss_fn(terms, metric_scale=1)
-    metrics["loss"] = loss
-    return loss, metrics
+    metrics["loss_cond"] = loss_cond
+
+    # Unconditional Generation
+    features = model.backbone(img)
+    predictor = partial(model.head, features=features)
+    D_yn_u = jax.vmap(predictor)(contour + noise)  # TODO: sigma input
+    loss_cond = jnp.mean(weight * ((D_yn_u - contour) ** 2))
+    terms = {"contour": contour, "snake": D_yn_u}
+    loss_uncond = jnp.mean(weight_u * ((D_yn_u - contour) ** 2))
+    metrics["loss_uncond"] = loss_uncond
+    metrics["loss"] = loss_cond + loss_uncond
+    # Unconditional Generation
+    return metrics["loss"], metrics
 
   gradients, metrics = nnx.grad(get_loss, has_aux=True)(state.model)
   state.update(gradients)
