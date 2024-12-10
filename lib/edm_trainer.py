@@ -97,15 +97,7 @@ def _train_step_jit(state, key, loss_fn, edm_params):
   # img, contour = prep(batch, aug_key)
   B = config.batch_size
   keys = jax.random.split(aug_key, B)
-  # contour = jax.vmap(partial(random_bezier, vertices=128))(keys)
-  contour = jnp.stack(
-    [
-      0.7 * jnp.sin(jnp.linspace(0, 2 * jnp.pi, 128)),
-      0.7 * jnp.cos(jnp.linspace(0, 2 * jnp.pi, 128)),
-    ],
-    axis=-1,
-  )
-  contour = repeat(contour, "T C -> B T C", B=B)
+  contour = jax.vmap(partial(random_bezier, vertices=128))(keys)
 
   rnd_normal = jax.random.normal(t_key, shape=(B, 1, 1))
   sigma = jnp.exp(rnd_normal * edm_params["P_std"] + edm_params["P_mean"])
