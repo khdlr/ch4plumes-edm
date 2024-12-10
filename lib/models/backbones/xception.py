@@ -17,6 +17,7 @@ class CheapBackbone(nnx.Module):
     self.conv5 = nnx.Conv(256, 512, [2, 2], strides=[2, 2], rngs=rngs)
 
   def __call__(self, x):
+    jax.debug.print("img range: {:.5f} -- {:.5f}", x.min(), x.max())
     x = jax.nn.silu(self.conv1(x))
     skip = x = jax.nn.silu(self.conv2(x))
     x = jax.nn.silu(self.conv3(x))
