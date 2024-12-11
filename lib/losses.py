@@ -144,7 +144,7 @@ def stepwise_softdtw_and_aux(snake_steps, segmentation, offsets, mask, contour):
   return loss_terms
 
 
-class AbstractDTW(nnx.Module):
+class AbstractDTW(LossFunction):
   def __init__(self, bandwidth=None):
     self.bandwidth = bandwidth
 
@@ -152,7 +152,7 @@ class AbstractDTW(nnx.Module):
   def minimum(self, args):
     raise NotImplementedError()
 
-  def __call__(self, terms):
+  def impl(self, terms):
     loss = jax.vmap(self.dtw)(terms["snake"], terms["contour"])
     loss = jnp.mean(loss)
     return loss, {"dtw": loss}

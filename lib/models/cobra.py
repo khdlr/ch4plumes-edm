@@ -127,7 +127,6 @@ def rope2d(feature_map, n_heads):
     feature_map, "B H W (K S C) -> S B H W K C", K=n_heads, S=4
   )
   B, H, W, K, C = f1.shape
-  print("Shape within RoPe:", f1.shape)
   xs = jnp.linspace(-1, 1, W, endpoint=False).reshape(1, 1, W, 1, 1) + 1 / W
   ys = jnp.linspace(-1, 1, H, endpoint=False).reshape(1, H, 1, 1, 1) + 1 / H
 
