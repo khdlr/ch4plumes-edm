@@ -22,11 +22,11 @@ class COBRA(nnx.Module):
     self.model_dim = config.model_dim
     self.iterations = config.iterations
     self.vertices = config.vertices
-    self.head = SnakeHead(1024 + 128, self.model_dim, config.blocks, rngs=rngs)
+    self.head = SnakeHead(576, self.model_dim, config.blocks, rngs=rngs)
     self.dropout = nn.ChannelDropout(rngs=rngs)
     self.rngs = rngs
 
-  def __call__(self, imagery, dropout_rate=0.0):
+  def __call__(self, imagery, sigma, dropout_rate=0.0):
     feature_maps = self.backbone(imagery, dropout_rate=dropout_rate)
 
     init_keys = jax.random.split(self.rngs(), imagery.shape[0])
@@ -36,7 +36,7 @@ class COBRA(nnx.Module):
 
     for _ in range(self.iterations):
       vertices = jax.lax.stop_gradient(vertices)
-      vertices = vertices + self.head(vertices, feature_maps)
+      vertices = vertices + self.head(vertices, feature_maps, sigma)
       steps.append(vertices)
 
     return {"snake_steps": steps, "snake": vertices}
@@ -49,8 +49,7 @@ class SnakeHead(nnx.Module):
     D = d_in
     C = d_hidden
 
-    self.init_coords = nnx.Conv(2, C, [4], strides=4, rngs=rngs)
-    self.init_features = nnx.Conv(D, C, [4], strides=4, use_bias=False, rngs=rngs)
+    self.init_coords = nnx.Conv(2, C, [1], strides=1, rngs=rngs)
 
     # self.model = Transformer(d_hidden, blocks, rngs=rngs)
     self.model = UNet1D(d_hidden, rngs=rngs)
@@ -59,28 +58,33 @@ class SnakeHead(nnx.Module):
     self.mk_offset = nnx.ConvTranspose(
       C,
       2,
-      [4],
-      strides=4,
+      [1],
+      strides=1,
       use_bias=False,
       kernel_init=nnx.initializers.zeros,
       rngs=rngs,
     )
 
+    self.init_features = nnx.Conv(D, C, [1], strides=1, use_bias=False, rngs=rngs)
     self.dropout = nn.ChannelDropout(rngs=rngs)
-    self.condition_gate = nnx.Param(-2 * jnp.ones(()))
 
-  def __call__(self, vertices, features, *, dropout_rate=0.0):
+    self.local_condition_gate = nnx.Linear(1, C, rngs=rngs)
+    self.global_condition_gate = nnx.Linear(1, C, rngs=rngs)
+
+  def __call__(self, vertices, features, sigma, *, dropout_rate=0.0):
     # Start with coord features
     x = self.init_coords(vertices)
-    # Conditioning is optional
     if features is not None:
+      # Condition on local image features
       vertex_features = []
       for feature_map in features:
         feat = jax.vmap(snake_utils.sample_at_vertices, [0, 0])(vertices, feature_map)
         feat = self.dropout(feat, dropout_rate=dropout_rate)
         vertex_features.append(feat)
-      gate = jax.nn.sigmoid(self.condition_gate.value)
+      gate = jax.nn.sigmoid(self.local_condition_gate(sigma))
       x += gate * self.init_features(jnp.concatenate(vertex_features, axis=-1))
+
+      # Condition on global image features
     x = jax.nn.silu(x)
 
     x = self.model(x)

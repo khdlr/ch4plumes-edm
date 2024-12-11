@@ -121,7 +121,7 @@ def _train_step_jit(state, batch, key, loss_fn, edm_params):
     # Conditional Generation
     features = model.backbone(img)
     predictor = partial(model.head, features=features)
-    D_yn = jax.vmap(predictor)(contour + noise)  # TODO: sigma input
+    D_yn = jax.vmap(predictor)(contour + noise, sigma=sigma)
     loss_cond = jnp.mean(weight * ((D_yn - contour) ** 2))
     terms = {"contour": contour, "snake": D_yn}
     _, metrics = loss_fn(terms, metric_scale=1)
@@ -129,7 +129,7 @@ def _train_step_jit(state, batch, key, loss_fn, edm_params):
 
     # Unconditional Generation
     predictor = partial(model.head, features=None)
-    D_yn_u = jax.vmap(predictor)(contour + noise_u)  # TODO: sigma input
+    D_yn_u = jax.vmap(predictor)(contour + noise_u, sigma=sigma_u)
     loss_uncond = jnp.mean(weight_u * ((D_yn_u - contour) ** 2))
     metrics["loss_uncond"] = loss_uncond
     metrics["loss"] = loss_cond + loss_uncond
@@ -161,12 +161,14 @@ def _sample_step(state, vertices, features, step_data, edm_params):
   )
 
   # Euler step.
-  denoised = state.model.head(x_hat, features=features)  ## TODO: t_hat as model input!
+  denoised = state.model.head(
+    x_hat, t_cur, features=features
+  )  ## TODO: t_hat as model input!
   d_cur = (x_hat - denoised) / t_hat
   x_next = x_hat + (t_next - t_hat) * d_cur
 
   # 2nd order correction (without branching in python, to remain scan-able)
-  denoised = state.model.head(x_next, features=features)
+  denoised = state.model.head(x_next, t_next, features=features)
   d_prime = (x_next - denoised) / t_next
   x_next = jnp.where(
     do_2nd, x_hat + (t_next - t_hat) * (0.5 * d_cur + 0.5 * d_prime), x_next
