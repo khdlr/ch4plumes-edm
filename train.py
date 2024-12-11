@@ -64,7 +64,7 @@ def main() -> None:
       filename = batch["filename"][0].decode("utf8").removesuffix(".tif")
       name = f"{batch['year'][0]}_{filename}"
       logging.log_anim_multi(out, f"TrnAnim/{i}", epoch)
-      if i >= 3:
+      if i >= 4:
         break
 
     val_metrics = defaultdict(list)
