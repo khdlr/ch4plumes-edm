@@ -66,14 +66,9 @@ class SnakeHead(nnx.Module):
     )
 
     self.dropout = nn.ChannelDropout(rngs=rngs)
-    self.conditioning_attns = [
-      CrossAttentionConditioning(64, 1, rngs=rngs),
-      CrossAttentionConditioning(512, 8, rngs=rngs),
-    ]
-    self.conditioning_projs = [
-      nnx.Linear(64, C, rngs=rngs),
-      nnx.Linear(512, C, rngs=rngs),
-    ]
+    self.cond_attn = CrossAttentionConditioning(512, 8, rngs=rngs)
+    self.cond_proj = nnx.Linear(512, C, rngs=rngs)
+    self.local_cond_proj = nnx.Linear(64, C, rngs=rngs)
 
   def __call__(self, vertices, features, sigma, *, dropout_rate=0.0):
     sigma = jnp.log(sigma)  # Back to log scale for sigma
@@ -82,10 +77,11 @@ class SnakeHead(nnx.Module):
     if features is None:
       features = []
 
-    for feature_map, cond, proj in zip(
-      features, self.conditioning_attns, self.conditioning_projs
-    ):
-      x += proj(cond(vertices, feature_map))
+    if features:
+      f_local, f_global = features
+      x += self.cond_proj(self.cond_attn(vertices, f_global))
+      feat = jax.vmap(snake_utils.sample_at_vertices, [0, 0])(vertices, f_local)
+      x += self.local_cond_proj(feat)
 
     x = jax.nn.silu(x)
     x = self.model(x)
@@ -122,7 +118,6 @@ class CrossAttentionConditioning(nnx.Module):
 
 def rope2d(feature_map, n_heads):
   "feature_maps: (B H W C), applies rotary embedding for both dims"
-  # k = rearrange(k, "B (T H) C -> B T H C", H=n_heads)
   f1, f2, f3, f4 = rearrange(
     feature_map, "B H W (K S C) -> S B H W K C", K=n_heads, S=4
   )
