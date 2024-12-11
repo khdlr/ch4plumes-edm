@@ -1,8 +1,7 @@
 ### Model Specification
 model:
-  backbone: CheapBackbone
+  backbone: Xception
   model_dim: 512
-  blocks: 6
   iterations: 5
   vertices: 128
 ### Training configuration

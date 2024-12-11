@@ -52,8 +52,8 @@ def rms_norm(scale, x):
 
 def apply_rotary_embedding(q, k, cos, sin, n_heads, index=None):
   """Helper function to apply Rotary Embeddings."""
-  q = rearrange(q, "B (T H) C -> B T H C", H=n_heads)
-  k = rearrange(k, "B (T H) C -> B T H C", H=n_heads)
+  q = rearrange(q, "B T (H C) -> B T H C", H=n_heads)
+  k = rearrange(k, "B T (H C) -> B T H C", H=n_heads)
   batch, qlen, qheads, d = q.shape
   kbatch, klen, kheads, kd = k.shape
   if index is not None:
