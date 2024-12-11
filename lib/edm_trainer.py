@@ -161,14 +161,12 @@ def _sample_step(state, vertices, features, step_data, edm_params):
   )
 
   # Euler step.
-  denoised = state.model.head(
-    x_hat, t_cur, features=features
-  )  ## TODO: t_hat as model input!
+  denoised = state.model.head(x_hat, features=features, sigma=t_cur)
   d_cur = (x_hat - denoised) / t_hat
   x_next = x_hat + (t_next - t_hat) * d_cur
 
   # 2nd order correction (without branching in python, to remain scan-able)
-  denoised = state.model.head(x_next, t_next, features=features)
+  denoised = state.model.head(x_next, features=features, sigma=t_next)
   d_prime = (x_next - denoised) / t_next
   x_next = jnp.where(
     do_2nd, x_hat + (t_next - t_hat) * (0.5 * d_cur + 0.5 * d_prime), x_next
@@ -178,6 +176,7 @@ def _sample_step(state, vertices, features, step_data, edm_params):
 
 @nnx.jit
 def _sample_jit(state, imagery, edm_params, key):
+  B, *_ = imagery.shape
   # Extract config:
   sigma_max = edm_params["sigma_max"]
   sigma_min = edm_params["sigma_min"]
@@ -189,9 +188,9 @@ def _sample_jit(state, imagery, edm_params, key):
     + step_indices / (num_steps - 1) * (sigma_min ** (1 / rho) - sigma_max ** (1 / rho))
   ) ** rho
   t_steps = jnp.concatenate([t_steps, jnp.zeros((1,))])  # t_N = 0
+  t_steps = repeat(t_steps, "T -> T B 1 1", B=B)
   # Main sampling loop.
   init_key, sample_key = jax.random.split(key)
-  B, *_ = imagery.shape
   x_init = jax.random.normal(init_key, [B, 128, 2])
 
   sample_keys = jax.random.split(sample_key, num_steps)
@@ -202,7 +201,7 @@ def _sample_jit(state, imagery, edm_params, key):
 
   t_cur = t_steps[:-1]
   t_next = t_steps[1:]
-  do_2nd = t_next != t_next[-1]
+  do_2nd = t_next != t_next[-1:, :]
   step_info = (sample_keys, t_cur, t_next, do_2nd)
   _, steps = jax.lax.scan(scan_step, x_init, step_info)
 
