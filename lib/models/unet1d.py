@@ -15,26 +15,26 @@ class UNet1D(nnx.Module):
         nnx.Conv(2 * C, 2 * C, [3], strides=1, rngs=rngs),
       ),
       (
-        nnx.Conv(2 * C, 4 * C, [2], strides=2, rngs=rngs),
-        nnx.Conv(4 * C, 4 * C, [3], strides=1, rngs=rngs),
-        nnx.Conv(4 * C, 4 * C, [3], strides=1, rngs=rngs),
+        nnx.Conv(2 * C, 2 * C, [2], strides=2, rngs=rngs),
+        nnx.Conv(2 * C, 2 * C, [3], strides=1, rngs=rngs),
+        nnx.Conv(2 * C, 2 * C, [3], strides=1, rngs=rngs),
       ),
       (
-        nnx.Conv(4 * C, 8 * C, [2], strides=2, rngs=rngs),
-        nnx.Conv(8 * C, 8 * C, [3], strides=1, rngs=rngs),
-        nnx.Conv(8 * C, 8 * C, [3], strides=1, rngs=rngs),
+        nnx.Conv(2 * C, 2 * C, [2], strides=2, rngs=rngs),
+        nnx.Conv(2 * C, 2 * C, [3], strides=1, rngs=rngs),
+        nnx.Conv(2 * C, 2 * C, [3], strides=1, rngs=rngs),
       ),
     ]
     self.part2 = [
       (
-        nnx.Conv(8 * C, 8 * C, [3], strides=1, rngs=rngs),
-        nnx.Conv(8 * C, 8 * C, [3], strides=1, rngs=rngs),
-        nnx.ConvTranspose(8 * C, 4 * C, [2], strides=2, rngs=rngs),
+        nnx.Conv(2 * C, 2 * C, [3], strides=1, rngs=rngs),
+        nnx.Conv(2 * C, 2 * C, [3], strides=1, rngs=rngs),
+        nnx.ConvTranspose(2 * C, 2 * C, [2], strides=2, rngs=rngs),
       ),
       (
-        nnx.Conv(4 * C, 4 * C, [3], strides=1, rngs=rngs),
-        nnx.Conv(4 * C, 4 * C, [3], strides=1, rngs=rngs),
-        nnx.ConvTranspose(4 * C, 2 * C, [2], strides=2, rngs=rngs),
+        nnx.Conv(2 * C, 2 * C, [3], strides=1, rngs=rngs),
+        nnx.Conv(2 * C, 2 * C, [3], strides=1, rngs=rngs),
+        nnx.ConvTranspose(2 * C, 2 * C, [2], strides=2, rngs=rngs),
       ),
       (
         nnx.Conv(2 * C, 2 * C, [3], strides=1, rngs=rngs),

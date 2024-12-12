@@ -44,7 +44,7 @@ def main() -> None:
 
     logging.log_metrics(trn_metrics, "trn", epoch)
 
-    if epoch % 1 != 0:
+    if epoch % 20 != 0:
       continue
 
     trainer.save_state((run_dir / f"{epoch}.ckpt").absolute())
@@ -84,8 +84,6 @@ def main() -> None:
       filename = batch["filename"][0].decode("utf8").removesuffix(".tif")
       name = f"{batch['year'][0]}_{filename}"
       logging.log_anim_multi(out, f"Animated/{name}", epoch)
-      if i >= 8:
-        break
     logging.log_metrics(val_metrics, "val", epoch)
 
 
