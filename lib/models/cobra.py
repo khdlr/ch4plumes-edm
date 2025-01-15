@@ -87,7 +87,7 @@ class SnakeHead(nnx.Module):
     x = self.model(x)
     offsets = self.mk_offset(x)
 
-    return offsets
+    return x + offsets
 
 
 class CrossAttentionConditioning(nnx.Module):
