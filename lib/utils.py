@@ -28,7 +28,7 @@ def prep(batch, key=None, input_types=None):
   ops += [augmax.ByteToFloat()]
   if key is not None:
     ops += [
-      augmax.Solarization(p=0.1),
+      # augmax.Solarization(p=0.1),
       augmax.ColorJitter(),
       # augmax.RandomChannelGamma(p=0.5, range=(0.5, 2.0)),
       augmax.RandomBrightness(p=0.5),
