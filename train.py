@@ -60,7 +60,10 @@ def main() -> None:
 
     for i in range(B):
       # jax.tree.map(lambda x: x[i], predictions)
-      out = {k: np.stack([p[k][:, i] for p in predictions]) for k in predictions[0]}
+      out = {
+        k: np.stack(jax.tree.map(lambda x: x[i], [p[k] for p in predictions]))
+        for k in predictions[0]
+      }
       filename = batch["filename"][i].decode("utf8").removesuffix(".tif")
       name = filename
       logging.log_anim_multi(out, f"TrnAnim/{i}", epoch)
