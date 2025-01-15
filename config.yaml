@@ -1,6 +1,6 @@
 ### Model Specification
 model:
-  backbone: Xception
+  backbone: WideCeption
   model_dim: 512
   iterations: 5
   vertices: 128

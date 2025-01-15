@@ -1,4 +1,4 @@
-import sys
+from typing import Optional
 from dataclasses import dataclass
 
 from pyrallis.argparsing import parse
@@ -23,6 +23,7 @@ class Config:
   batch_size: int
   samples_per_image: int
   seed: int
+  resume_from: Optional[str] = None
   wandb_id: str = ""
 
 

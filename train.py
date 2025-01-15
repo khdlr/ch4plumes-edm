@@ -44,7 +44,7 @@ def main() -> None:
 
     logging.log_metrics(trn_metrics, "trn", epoch)
 
-    if epoch % 20 != 0:
+    if epoch % 10 != 0:
       continue
 
     trainer.save_state((run_dir / f"{epoch}.ckpt").absolute())

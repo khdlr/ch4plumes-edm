@@ -1,4 +1,5 @@
 import jax
+import jax.numpy as np
 import optax
 import orbax.checkpoint as ocp
 from flax import nnx
@@ -30,6 +31,10 @@ class Trainer:
 
     self.checkpointer = ocp.PyTreeCheckpointer()
 
+    if config.resume_from is not None:
+      print(f"Resuming from {config.resume_from}")
+      self.load_state(config.resume_from)
+
   def train_step(self, batch):
     self.state.model.train()
     self.trn_key, key = jax.random.split(self.trn_key)
@@ -54,6 +59,18 @@ class Trainer:
         state[key_path] = nnx.VariableState(type=nnx.Param, value=uint32_array)
 
     self.checkpointer.save(path, state)
+
+  def load_state(self, path):
+    graphdef, state = nnx.split(self.state)
+    loaded_state = self.checkpointer.restore(path)
+    flat_state = state.flat_state()
+
+    for key_path in list(flat_state.keys()):
+      if flat_state[key_path].type == nnx.RngKey:
+        # Convert the RNG key into an array of uint32 numbers
+        loaded_state[key_path] = nnx.RngKey(loaded_state[key_path].value)
+
+    self.state = nnx.merge(graphdef, state.from_flat_state(loaded_state))
 
 
 @nnx.jit

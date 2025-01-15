@@ -1,10 +1,13 @@
 import jax
 import jax.numpy as jnp
+import jax.numpy as np
 import optax
 import orbax.checkpoint as ocp
 from flax import nnx
+from flax.nnx import traversals
 from functools import partial
 from einops import repeat
+from pathlib import Path
 
 from . import losses
 from .config_mod import config
@@ -34,8 +37,6 @@ class EDMTrainer:
     self.loss_fn.add_metric(losses.L2())
     self.loss_fn.add_metric(losses.Huber())
 
-    self.checkpointer = ocp.PyTreeCheckpointer()
-
     self.n_vertices = config.model.vertices
     self.edm_params = {
       "P_mean": -1.2,
@@ -48,6 +49,12 @@ class EDMTrainer:
       "S_min": 0.0,
       "S_noise": 1.0,
     }
+
+    self.checkpointer = ocp.PyTreeCheckpointer()
+
+    if config.resume_from is not None:
+      print(f"Resuming from {config.resume_from}")
+      self.load_state(config.resume_from)
 
   def train_step(self, batch):
     self.state.model.train()
@@ -80,17 +87,19 @@ class EDMTrainer:
     return _sample_jit(self.state, imagery, self.edm_params, key)
 
   def save_state(self, path):
+    keys, state = nnx.state(self.state, nnx.RngKey, ...)
+    # keys = jax.tree.map(jax.random.key_data, keys)
+    self.checkpointer.save(Path(path).absolute(), state)
+
+  def load_state(self, path):
     graphdef, state = nnx.split(self.state)
-    state = state.flat_state()
-
-    for key_path in list(state.keys()):
-      if state[key_path].type == nnx.RngKey:
-        # Convert the RNG key into an array of uint32 numbers
-        uint32_array = jax.random.key_data(state[key_path].value)
-        # Replace the RNG key in the model state with the array
-        state[key_path] = nnx.VariableState(type=nnx.Param, value=uint32_array)
-
-    self.checkpointer.save(path, state)
+    keys, state = nnx.state(self.state, nnx.RngKey, ...)
+    loaded = self.checkpointer.restore(Path(path).absolute(), state)
+    # loaded["keys"] = jax.tree.map(jax.random.wrap_key_data, loaded["keys"])
+    # state.replace_by_pure_dict(loaded["keys"])
+    # state.update(loaded["keys"])
+    # nnx.display(loaded["state"])
+    self.state = nnx.merge(graphdef, loaded, keys)
 
 
 # Adapted from https://github.com/yiyixuxu/denoising-diffusion-flax/blob/main/denoising_diffusion_flax/train.py
