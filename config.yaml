@@ -1,6 +1,6 @@
 ### Model Specification
 model:
-  backbone: WideCeption
+  backbone: Xception
   model_dim: 512
   iterations: 5
   vertices: 128
@@ -10,4 +10,4 @@ loss_function: Huber
 loss_stepwise: true
 ### Data args
 batch_size: 16
-samples_per_image: 32
+samples_per_image: 4

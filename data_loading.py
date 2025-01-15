@@ -11,7 +11,7 @@ def get_loader(batch_size, mode):
   name = "synthetic_contours"
   ds = tfds.load(name, split=mode)
   if mode == "train":
-    ds = ds.repeat(1)
+    # ds = ds.repeat(1)
     ds = ds.shuffle(1024)
   ds = ds.batch(batch_size)
   if name == "synthetic_contours":

@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from functools import partial
+from itertools import islice
 from data_loading import get_loader
 import yaml
 
@@ -54,6 +55,7 @@ def main() -> None:
       tqdm(train_loader, desc=f"Trn Sampling {epoch:3d}", ncols=80, total=4)
     ):
       B, H, W, C = batch["image"].shape
+      batch = jax.tree.map(lambda x: x[:1], batch)
       predictions = []
       for _ in range(5):
         out, metrics = trainer.test_step(batch)
@@ -62,14 +64,14 @@ def main() -> None:
         predictions.append(jax.tree.map(lambda x: x[0], out))
       out = {k: np.stack([p[k] for p in predictions]) for k in predictions[0]}
       filename = batch["filename"][0].decode("utf8").removesuffix(".tif")
-      name = f"{batch['year'][0]}_{filename}"
+      name = filename
       logging.log_anim_multi(out, f"TrnAnim/{i}", epoch)
       if i >= 4:
         break
 
     val_metrics = defaultdict(list)
     for i, batch in enumerate(
-      tqdm(val_loader, desc=f"Val {epoch:3d}", ncols=80, total=8),
+      islice(tqdm(val_loader, desc=f"Val {epoch:3d}", ncols=80, total=8), 8)
     ):
       B, H, W, C = batch["image"].shape
       predictions = []
@@ -82,7 +84,8 @@ def main() -> None:
           val_metrics[m].append(metrics[m])
       out = {k: np.stack([p[k] for p in predictions]) for k in predictions[0]}
       filename = batch["filename"][0].decode("utf8").removesuffix(".tif")
-      name = f"{batch['year'][0]}_{filename}"
+      # name = f"{batch['year'][0]}_{filename}"
+      name = filename
       logging.log_anim_multi(out, f"Animated/{name}", epoch)
     logging.log_metrics(val_metrics, "val", epoch)
 
