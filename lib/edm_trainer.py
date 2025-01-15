@@ -66,7 +66,7 @@ class EDMTrainer:
     self.state.model.eval()
     self.val_key, key = jax.random.split(self.val_key)
     data = (batch["image"], batch["dem"], batch["contour"])
-    img, contour = prep(data, key)
+    img, contour = prep(data)
     sampling_terms = self.sample(img)
 
     terms = {
