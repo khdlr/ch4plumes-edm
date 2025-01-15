@@ -25,7 +25,7 @@ def main() -> None:
   train_loader = get_loader(config.batch_size, "train")
   val_loader = get_loader(4, "val")
 
-  wandb.init(project="COBRA Diffusion Test", config=config, name=run_name)
+  wandb.init(project="Synthetic Contours Diffusion", config=config, name=run_name)
 
   assert wandb.run is not None
   config.wandb_id = wandb.run.id
@@ -44,7 +44,7 @@ def main() -> None:
 
     logging.log_metrics(trn_metrics, "trn", epoch)
 
-    if epoch % 10 != 0:
+    if epoch % 1 != 0:
       continue
 
     trainer.save_state((run_dir / f"{epoch}.ckpt").absolute())
