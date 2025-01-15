@@ -49,29 +49,25 @@ def main() -> None:
       continue
 
     trainer.save_state((run_dir / f"{epoch}.ckpt").absolute())
-
     trainer.val_key = jax.random.PRNGKey(0)  # Re-seed val key
-    for i, batch in enumerate(
-      tqdm(train_loader, desc=f"Trn Sampling {epoch:3d}", ncols=80, total=4)
-    ):
-      B, H, W, C = batch["image"].shape
-      batch = jax.tree.map(lambda x: x[:1], batch)
-      predictions = []
-      for _ in range(5):
-        out, metrics = trainer.test_step(batch)
-        out = jax.tree.map(lambda x: (x + 1) * (H / 2), out)
-        out.update(batch)
-        predictions.append(jax.tree.map(lambda x: x[0], out))
-      out = {k: np.stack([p[k] for p in predictions]) for k in predictions[0]}
-      filename = batch["filename"][0].decode("utf8").removesuffix(".tif")
+    B, H, W, C = batch["image"].shape
+    predictions = []
+    for _ in range(5):
+      out, metrics = trainer.test_step(batch)
+      out = jax.tree.map(lambda x: (x + 1) * (H / 2), out)
+      out.update(batch)
+      predictions.append(out)
+
+    for i in range(B):
+      # jax.tree.map(lambda x: x[i], predictions)
+      out = {k: np.stack([p[k][i] for p in predictions]) for k in predictions[0]}
+      filename = batch["filename"][i].decode("utf8").removesuffix(".tif")
       name = filename
       logging.log_anim_multi(out, f"TrnAnim/{i}", epoch)
-      if i >= 4:
-        break
 
     val_metrics = defaultdict(list)
     for i, batch in enumerate(
-      islice(tqdm(val_loader, desc=f"Val {epoch:3d}", ncols=80, total=8), 8)
+      tqdm(islice(val_loader, 8), desc=f"Val {epoch:3d}", ncols=80, total=8)
     ):
       B, H, W, C = batch["image"].shape
       predictions = []
