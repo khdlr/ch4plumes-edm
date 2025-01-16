@@ -11,18 +11,24 @@ def pseudo_dem(batch):
 def prepare_coastlines(batch):
   batch = dict(**batch)
   m = batch["mask"]
-  batch["image"] = 255 * tf.cast(tf.stack([m, m, m], axis=-1), tf.uint8)
-  batch["dem"] = 300 * tf.cast(tf.stack([m], axis=-1), tf.float32)
+  batch["image"] = 255 * tf.cast(tf.concat([m, m, m], axis=-1), tf.uint8)
+  batch["dem"] = 300 * tf.cast(m, tf.float32)
   batch["contour"] = tf.reverse(batch["contour"], axis=[-1])
   batch["filename"] = tf.strings.reduce_join(
     tf.strings.as_string(batch["xyz"]), separator="/", axis=-1
   )
+  print("img", batch["image"].shape)
+  print("dem", batch["dem"].shape)
+  print("contour", batch["contour"].shape)
   return batch
 
 
 def get_loader(batch_size, mode):
   name = "coastlines"
   ds = tfds.load(name, split=mode)
+  if name == "coastlines":
+    ds = ds.filter(lambda x: x["xyz"][2] < 12)
+
   if mode == "train":
     if name == "zakynthos":
       ds = ds.repeat(50)
