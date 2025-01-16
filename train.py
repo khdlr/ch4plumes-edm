@@ -26,7 +26,7 @@ def main() -> None:
   train_loader = get_loader(config.batch_size, "train")
   val_loader = get_loader(4, "val")
 
-  wandb.init(project="Synthetic Contours Diffusion", config=config, name=run_name)
+  wandb.init(project="Diffusion-Cobra", config=config, name=run_name)
 
   assert wandb.run is not None
   config.wandb_id = wandb.run.id
@@ -50,7 +50,7 @@ def main() -> None:
 
     trainer.save_state((run_dir / f"{epoch}.ckpt").absolute())
     trainer.val_key = jax.random.PRNGKey(0)  # Re-seed val key
-    B, H, W, C = batch["image"].shape
+    B, H, _, _ = batch["image"].shape
     predictions = []
     for _ in range(5):
       out, metrics = trainer.test_step(batch)
@@ -64,15 +64,13 @@ def main() -> None:
         k: np.stack(jax.tree.map(lambda x: x[i], [p[k] for p in predictions]))
         for k in predictions[0]
       }
-      filename = batch["filename"][i].decode("utf8").removesuffix(".tif")
-      name = filename
       logging.log_anim_multi(out, f"TrnAnim/{i}", epoch)
 
     val_metrics = defaultdict(list)
     for i, batch in enumerate(
       tqdm(islice(val_loader, 8), desc=f"Val {epoch:3d}", ncols=80, total=8)
     ):
-      B, H, W, C = batch["image"].shape
+      B, H, _, _ = batch["image"].shape
       predictions = []
       for _ in range(5):
         out, metrics = trainer.test_step(batch)
@@ -83,8 +81,7 @@ def main() -> None:
           val_metrics[m].append(metrics[m])
       out = {k: np.stack([p[k] for p in predictions]) for k in predictions[0]}
       filename = batch["filename"][0].decode("utf8").removesuffix(".tif")
-      # name = f"{batch['year'][0]}_{filename}"
-      name = filename
+      name = f"{batch['year'][0]}_{filename}"
       logging.log_anim_multi(out, f"Animated/{name}", epoch)
     logging.log_metrics(val_metrics, "val", epoch)
 
