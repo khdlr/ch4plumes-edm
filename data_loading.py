@@ -24,7 +24,7 @@ def get_loader(batch_size, mode):
   name = "coastlines"
   ds = tfds.load(name, split=mode)
   if name == "coastlines":
-    ds = ds.filter(lambda x: x["xyz"][2] < 10)
+    ds = ds.filter(lambda x: x["xyz"][2] < 11)
 
   if mode == "train":
     if name == "zakynthos":
