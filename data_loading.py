@@ -2,12 +2,6 @@ import tensorflow as tf
 import tensorflow_datasets as tfds
 
 
-def pseudo_dem(batch):
-  batch = dict(**batch)
-  batch["dem"] = batch["image"][..., :1]
-  return batch
-
-
 def prepare_coastlines(batch):
   batch = dict(**batch)
 
@@ -28,16 +22,14 @@ def prepare_coastlines(batch):
 
 
 def get_loader(batch_size, mode):
-  name = "coastlines"
+  name = "synthetic_contours"
   ds = tfds.load(name, split=mode)
   if mode == "train":
     if name == "zakynthos":
       ds = ds.repeat(50)
     ds = ds.shuffle(1024)
   ds = ds.batch(batch_size)
-  if name == "synthetic_contours":
-    ds = ds.map(pseudo_dem)
-  elif name == "coastlines":
+  if name == "coastlines":
     ds = ds.map(prepare_coastlines)
   ds = ds.prefetch(tf.data.AUTOTUNE)
 
