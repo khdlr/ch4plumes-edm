@@ -26,7 +26,7 @@ class EDMTrainer:
     model.train()
     lr_schedule = optax.warmup_constant_schedule(
       init_value=1e-7,
-      peak_value=1e-4,
+      peak_value=1e-5,
       warmup_steps=2000,
     )
     opt = optax.chain(optax.clip(1.0), optax.adam(lr_schedule, b1=0.9, b2=0.99))
