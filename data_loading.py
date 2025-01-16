@@ -17,9 +17,6 @@ def prepare_coastlines(batch):
   batch["filename"] = tf.strings.reduce_join(
     tf.strings.as_string(batch["xyz"]), separator="/", axis=-1
   )
-  print("img", batch["image"].shape)
-  print("dem", batch["dem"].shape)
-  print("contour", batch["contour"].shape)
   return batch
 
 
@@ -27,7 +24,7 @@ def get_loader(batch_size, mode):
   name = "coastlines"
   ds = tfds.load(name, split=mode)
   if name == "coastlines":
-    ds = ds.filter(lambda x: x["xyz"][2] < 12)
+    ds = ds.filter(lambda x: x["xyz"][2] < 10)
 
   if mode == "train":
     if name == "zakynthos":
@@ -38,5 +35,6 @@ def get_loader(batch_size, mode):
     ds = ds.map(pseudo_dem)
   elif name == "coastlines":
     ds = ds.map(prepare_coastlines)
+  ds = ds.prefetch(tf.data.AUTOTUNE)
 
   return tfds.as_numpy(ds)

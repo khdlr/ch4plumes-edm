@@ -81,7 +81,7 @@ def main() -> None:
           val_metrics[m].append(metrics[m])
       out = {k: np.stack([p[k] for p in predictions]) for k in predictions[0]}
       filename = batch["filename"][0].decode("utf8").removesuffix(".tif")
-      name = f"{batch['year'][0]}_{filename}"
+      name = filename
       logging.log_anim_multi(out, f"Animated/{name}", epoch)
     logging.log_metrics(val_metrics, "val", epoch)
 
