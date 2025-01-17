@@ -17,6 +17,7 @@ class Config:
   """Training config for Machine Learning"""
 
   name: str
+  dataset: str
   model: ModelConfig
   loss_function: str
   loss_stepwise: bool

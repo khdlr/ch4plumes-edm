@@ -1,5 +1,6 @@
 import tensorflow as tf
 import tensorflow_datasets as tfds
+from lib.config_mod import config
 
 
 def prepare_coastlines(batch):
@@ -22,7 +23,7 @@ def prepare_coastlines(batch):
 
 
 def get_loader(batch_size, mode):
-  name = "synthetic_contours"
+  name = config.dataset
   ds = tfds.load(name, split=mode)
   if mode == "train":
     if name == "zakynthos":

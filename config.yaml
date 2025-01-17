@@ -5,6 +5,7 @@ model:
   iterations: 5
   vertices: 128
 ### Training configuration
+dataset: zakynthos
 seed: 27
 loss_function: Huber
 loss_stepwise: true
