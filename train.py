@@ -38,7 +38,7 @@ def main() -> None:
   for epoch in range(1, 501):
     wandb.log({"epoch": epoch}, step=epoch)
     trn_metrics = defaultdict(list)
-    for batch in tqdm(train_loader, desc=f"Trn {epoch:3d}", ncols=80):
+    for batch in tqdm(islice(train_loader, 1024), desc=f"Trn {epoch:3d}", ncols=80):
       metrics = trainer.train_step(batch)
       for k, v in metrics.items():
         trn_metrics[k].append(v)
@@ -68,7 +68,7 @@ def main() -> None:
 
     val_metrics = defaultdict(list)
     for i, batch in enumerate(
-      tqdm(islice(val_loader, 8), desc=f"Val {epoch:3d}", ncols=80, total=8)
+      tqdm(islice(val_loader, 24), desc=f"Val {epoch:3d}", ncols=80, total=8)
     ):
       B, H, _, _ = batch["image"].shape
       predictions = []

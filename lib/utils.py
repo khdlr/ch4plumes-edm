@@ -15,8 +15,9 @@ def debug_break():
 
 
 def prep(batch, key=None, input_types=None):
+  do_augment = key is not None
   ops = []
-  if key is not None:
+  if do_augment:
     ops += [
       augmax.HorizontalFlip(),
       augmax.VerticalFlip(),
@@ -26,7 +27,7 @@ def prep(batch, key=None, input_types=None):
       # augmax.Warp(coarseness=32, strength=4),
     ]
   ops += [augmax.ByteToFloat()]
-  if key is not None:
+  if do_augment:
     ops += [
       # augmax.Solarization(p=0.1),
       augmax.ColorJitter(),
@@ -44,11 +45,16 @@ def prep(batch, key=None, input_types=None):
       augmax.InputType.CONTOUR,
     )
   chain = augmax.Chain(*ops, input_types=input_types)
-  if key is None:
+  if not do_augment:
     key = jax.random.PRNGKey(0)
   subkeys = jax.random.split(key, batch[0].shape[0])
   transformation = jax.vmap(chain)
   outputs = list(transformation(subkeys, batch))
+
+  if do_augment:
+    B, *_ = outputs[1].shape
+    dem_mask = jax.random.bernoulli(key, 0.7, [B, 1, 1, 1])
+    outputs[1] = outputs[1] * dem_mask
   outputs[1] = outputs[1] / 300
   outputs = [
     # Stack img and dem
