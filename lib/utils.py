@@ -22,8 +22,8 @@ def prep(batch, key=None, input_types=None):
       augmax.VerticalFlip(),
       augmax.Rotate90(),
       augmax.Rotate(15),
-      augmax.Warp(coarseness=64, strength=8),
-      augmax.Warp(coarseness=32, strength=4),
+      # augmax.Warp(coarseness=64, strength=8),
+      # augmax.Warp(coarseness=32, strength=4),
     ]
   ops += [augmax.ByteToFloat()]
   if key is not None:
