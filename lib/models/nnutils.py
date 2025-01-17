@@ -131,3 +131,21 @@ def upsample(x, factor=None, shp=None):
   else:
     H, W = shp
   return jax.image.resize(x, [B, H, W, C], "bilinear")
+
+
+class MCDropout(nnx.Module):
+  def __init__(self, *, rngs: nnx.Rngs):
+    self.rngs = rngs
+
+  def __call__(self, x, dropout_rate: float):
+    if dropout_rate < 0 or dropout_rate >= 1:
+      raise ValueError("rate must be in [0, 1).")
+
+    if dropout_rate == 0.0:
+      return x
+
+    keep_rate = 1.0 - dropout_rate
+    mask_shape = (x.shape[0], *((1,) * (x.ndim - 2)), x.shape[-1])
+
+    keep = jax.random.bernoulli(self.rngs(), keep_rate, shape=mask_shape)
+    return x * (keep / keep_rate)

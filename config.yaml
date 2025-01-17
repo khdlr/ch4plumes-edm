@@ -1,11 +1,11 @@
 ### Model Specification
 model:
-  backbone: Xception
+  backbone: SwinTransformerV2
   model_dim: 512
   iterations: 5
   vertices: 128
 ### Training configuration
-dataset: zakynthos
+dataset: synthetic_contours
 seed: 27
 loss_function: Huber
 loss_stepwise: true
