@@ -24,10 +24,13 @@ class EDMTrainer:
     model_rngs = nnx.Rngs(init_key)
     model = COBRA(config.model, rngs=model_rngs)
     model.train()
-    lr_schedule = optax.warmup_constant_schedule(
+    EPOCH = 1024 * 1024 // config.batch_size
+    lr_schedule = optax.warmup_cosine_decay_schedule(
       init_value=1e-7,
-      peak_value=1e-5,
-      warmup_steps=2000,
+      peak_value=2e-4,
+      warmup_steps=EPOCH,
+      end_value=1e-5,
+      decay_steps=31 * EPOCH,
     )
     opt = optax.chain(optax.clip(1.0), optax.adam(lr_schedule, b1=0.9, b2=0.99))
     self.state = nnx.Optimizer(model, opt)

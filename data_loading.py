@@ -24,7 +24,7 @@ def prepare_coastlines(batch):
 
 def get_loader(batch_size, mode):
   name = config.dataset
-  ds = tfds.load(name, split=mode)
+  ds = tfds.load(name, split=mode, shuffle_files=(mode == "train"))
   if mode == "train":
     if name == "zakynthos":
       ds = ds.repeat(50)
