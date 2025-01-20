@@ -26,7 +26,8 @@ def main() -> None:
   train_loader = get_loader(config.batch_size, "train")
   val_loader = get_loader(4, "val")
 
-  wandb.init(project="Diffusion-Cobra", config=config, name=run_name)
+  project = config.dataset.replace("_", " ").title()
+  wandb.init(project=f"DiffCobra {project}", config=config, name=run_name)
 
   assert wandb.run is not None
   config.wandb_id = wandb.run.id
@@ -38,14 +39,14 @@ def main() -> None:
   for epoch in range(1, 501):
     wandb.log({"epoch": epoch}, step=epoch)
     trn_metrics = defaultdict(list)
-    for batch in tqdm(islice(train_loader, 1024), desc=f"Trn {epoch:3d}", ncols=80):
+    for batch in tqdm(train_loader, desc=f"Trn {epoch:3d}", ncols=80):
       metrics = trainer.train_step(batch)
       for k, v in metrics.items():
         trn_metrics[k].append(v)
 
     logging.log_metrics(trn_metrics, "trn", epoch)
 
-    if epoch % 1 != 0:
+    if epoch % 5 != 0:
       continue
 
     trainer.save_state((run_dir / f"{epoch}.ckpt").absolute())

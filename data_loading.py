@@ -3,35 +3,22 @@ import tensorflow_datasets as tfds
 from lib.config_mod import config
 
 
-def prepare_coastlines(batch):
+def purge_dem(batch):
   batch = dict(**batch)
-
-  # Train on the mask
-  # m = batch["mask"]
-  # batch["image"] = tf.cast(tf.concat([m, m, m], axis=-1), tf.uint8)
-  # batch["dem"] = tf.cast(m, tf.float32)
-
-  # Train on the image
-  dem = tf.cast(batch["image"], tf.float32)
-  dem = tf.reduce_mean(dem, axis=-1, keepdims=True)
-  batch["dem"] = dem
-  batch["contour"] = tf.reverse(batch["contour"], axis=[-1])
-  batch["filename"] = tf.strings.reduce_join(
-    tf.strings.as_string(batch["xyz"]), separator="/", axis=-1
-  )
+  batch["dem"] = batch["dem"] * 0
   return batch
 
 
 def get_loader(batch_size, mode):
   name = config.dataset
+  print(f"loading {name}")
   ds = tfds.load(name, split=mode, shuffle_files=(mode == "train"))
   if mode == "train":
     if name == "zakynthos":
       ds = ds.repeat(50)
     ds = ds.shuffle(1024)
   ds = ds.batch(batch_size)
-  if name == "coastlines":
-    ds = ds.map(prepare_coastlines)
+  ds = ds.map(purge_dem)
   ds = ds.prefetch(tf.data.AUTOTUNE)
 
   return tfds.as_numpy(ds)

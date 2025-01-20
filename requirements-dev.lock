@@ -19,6 +19,8 @@ absl-py==2.1.0
     # via tensorflow-cpu
     # via tensorflow-datasets
     # via tensorflow-metadata
+affine==2.4.0
+    # via cobra
 annotated-types==0.7.0
     # via pydantic
 anyio==4.8.0
@@ -54,6 +56,8 @@ bleach==6.2.0
 certifi==2022.12.7
     # via httpcore
     # via httpx
+    # via pyogrio
+    # via pyproj
     # via requests
     # via sentry-sdk
 cffi==1.17.1
@@ -112,6 +116,8 @@ fsspec==2024.2.0
     # via torch
 gast==0.6.0
     # via tensorflow-cpu
+geopandas==1.0.1
+    # via cobra
 gitdb==4.0.12
     # via gitpython
 gitpython==3.1.44
@@ -299,6 +305,7 @@ numpy==1.26.3
     # via contourpy
     # via etils
     # via flax
+    # via geopandas
     # via h5py
     # via imageio
     # via jax
@@ -308,8 +315,11 @@ numpy==1.26.3
     # via ml-dtypes
     # via optax
     # via orbax-checkpoint
+    # via pandas
+    # via pyogrio
     # via scikit-image
     # via scipy
+    # via shapely
     # via tensorboard
     # via tensorflow-cpu
     # via tensorflow-datasets
@@ -357,6 +367,7 @@ overrides==7.7.0
     # via jupyter-server
 packaging==24.1
     # via black
+    # via geopandas
     # via ipykernel
     # via jupyter-server
     # via jupyterlab
@@ -365,8 +376,11 @@ packaging==24.1
     # via lazy-loader
     # via matplotlib
     # via nbconvert
+    # via pyogrio
     # via scikit-image
     # via tensorflow-cpu
+pandas==2.2.3
+    # via geopandas
 pandocfilters==1.5.1
     # via nbconvert
 parso==0.8.4
@@ -421,8 +435,12 @@ pygments==2.19.1
     # via jupyter-console
     # via nbconvert
     # via rich
+pyogrio==0.10.0
+    # via geopandas
 pyparsing==3.2.1
     # via matplotlib
+pyproj==3.7.0
+    # via geopandas
 pyrallis==0.3.1
     # via cobra
 pyright==1.1.391
@@ -430,8 +448,11 @@ python-dateutil==2.9.0.post0
     # via arrow
     # via jupyter-client
     # via matplotlib
+    # via pandas
 python-json-logger==3.2.1
     # via jupyter-events
+pytz==2024.2
+    # via pandas
 pyyaml==6.0.2
     # via cobra
     # via flax
@@ -483,6 +504,9 @@ setuptools==70.0.0
     # via tensorflow-cpu
     # via torch
     # via wandb
+shapely==2.0.6
+    # via cobra
+    # via geopandas
 simple-parsing==0.1.6
     # via tensorflow-datasets
 simplejson==3.19.3
@@ -580,6 +604,8 @@ typing-extensions==4.9.0
     # via typing-inspect
 typing-inspect==0.9.0
     # via pyrallis
+tzdata==2024.2
+    # via pandas
 uri-template==1.3.0
     # via jsonschema
 urllib3==1.26.13

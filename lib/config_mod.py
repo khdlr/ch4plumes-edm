@@ -16,7 +16,6 @@ class ModelConfig:
 class Config:
   """Training config for Machine Learning"""
 
-  name: str
   dataset: str
   model: ModelConfig
   loss_function: str
@@ -24,6 +23,7 @@ class Config:
   batch_size: int
   samples_per_image: int
   seed: int
+  name: Optional[str] = None
   resume_from: Optional[str] = None
   wandb_id: str = ""
 
