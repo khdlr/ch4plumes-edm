@@ -136,14 +136,6 @@ def SymmetricRMSE(snake, contour):
 ##### Architecture Specific Loss Functions #####
 
 
-def stepwise_softdtw_and_aux(snake_steps, segmentation, offsets, mask, contour):
-  loss_terms = stepwise(SoftDTW(0.001))(snake_steps, contour)
-  loss_terms["segmentation_loss"] = bce(segmentation, mask)
-  loss_terms["offset_loss"] = offset_field_loss(offsets, mask)
-
-  return loss_terms
-
-
 class AbstractDTW(nnx.Module):
   def __init__(self, bandwidth=None):
     self.bandwidth = bandwidth

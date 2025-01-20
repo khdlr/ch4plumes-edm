@@ -1,13 +1,13 @@
 ### Model Specification
 model:
-  backbone: Xception
-  model_dim: 768
+  backbone: WideCeption
+  model_dim: 256
   iterations: 5
   vertices: 128
 ### Training configuration
 dataset: synthetic_contours
 seed: 27
-loss_function: SoftDTW
+loss_function: Huber
 loss_stepwise: true
 ### Data args
 batch_size: 16

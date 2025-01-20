@@ -68,7 +68,7 @@ class SnakeHead(nnx.Module):
     self.dropout = nn.ChannelDropout(rngs=rngs)
     self.cond_attn = CrossAttentionConditioning(512, 8, rngs=rngs)
     self.cond_proj = nnx.Linear(512, C, rngs=rngs)
-    self.local_cond_proj = nnx.Linear(128, C, rngs=rngs)
+    self.local_cond_proj = nnx.Linear(64, C, rngs=rngs)
 
   def __call__(self, vertices, features, sigma, *, dropout_rate=0.0):
     sigma = jnp.log(sigma)  # Back to log scale for sigma
