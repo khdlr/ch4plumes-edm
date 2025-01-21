@@ -65,7 +65,6 @@ class SnakeHead(nnx.Module):
       rngs=rngs,
     )
 
-    self.dropout = nn.ChannelDropout(rngs=rngs)
     self.cond_attn = CrossAttentionConditioning(768, 8, rngs=rngs)
     self.cond_proj = nnx.Linear(768, C, rngs=rngs)
     self.local_cond_proj = nnx.Linear(384, C, rngs=rngs)
@@ -79,9 +78,9 @@ class SnakeHead(nnx.Module):
 
     if features:
       f_local, f_global = features
-      x += self.cond_proj(self.cond_attn(vertices, f_global))
-      feat = jax.vmap(snake_utils.sample_at_vertices, [0, 0])(vertices, f_local)
-      x += self.local_cond_proj(feat)
+      sample = jax.vmap(snake_utils.sample_at_vertices, [0, 0])
+      x += self.cond_proj(sample(vertices, f_global))
+      x += self.local_cond_proj(sample(vertices, f_local))
 
     x = jax.nn.silu(x)
     x = self.model(x)
