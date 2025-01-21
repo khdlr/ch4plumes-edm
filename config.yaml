@@ -1,7 +1,7 @@
 ### Model Specification
 model:
-  backbone: WideCeption
-  model_dim: 256
+  backbone: SwinTransformerV2
+  model_dim: 512
   iterations: 5
   vertices: 128
 ### Training configuration

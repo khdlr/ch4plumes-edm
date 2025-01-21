@@ -36,6 +36,8 @@ def main() -> None:
   with open(run_dir / "config.yml", "w") as f:
     f.write(yaml.dump(config, default_flow_style=False))
 
+  val_frequency = 5 if config.dataset == "zakynthos" else 1
+
   for epoch in range(1, 501):
     wandb.log({"epoch": epoch}, step=epoch)
     trn_metrics = defaultdict(list)
@@ -46,7 +48,7 @@ def main() -> None:
 
     logging.log_metrics(trn_metrics, "trn", epoch)
 
-    if epoch % 5 != 0:
+    if epoch % val_frequency != 0:
       continue
 
     trainer.save_state((run_dir / f"{epoch}.ckpt").absolute())
