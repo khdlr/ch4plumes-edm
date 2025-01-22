@@ -3,9 +3,12 @@ import tensorflow_datasets as tfds
 from lib.config_mod import config
 
 
-def purge_dem(batch):
+def normalize(batch):
   batch = dict(**batch)
-  batch["dem"] = batch["dem"] * 0
+  # Drop elevation data (if any)
+  batch["dem"] = tf.zeros_like(batch["image"][..., :1])
+  if "trace_class" not in batch:
+    batch["trace_class"] = tf.zeros([batch["image"].shape[0]], dtype=tf.int32)
   return batch
 
 
@@ -18,7 +21,7 @@ def get_loader(batch_size, mode):
       ds = ds.repeat(50)
     ds = ds.shuffle(1024)
   ds = ds.batch(batch_size)
-  ds = ds.map(purge_dem)
+  ds = ds.map(normalize)
   ds = ds.prefetch(tf.data.AUTOTUNE)
 
   return tfds.as_numpy(ds)

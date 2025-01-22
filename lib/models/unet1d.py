@@ -49,14 +49,16 @@ class UNet1D(nnx.Module):
 
   def __call__(self, x):
     stack = []
-    for blocks in self.part1:
-      stack.append(x)
-      for block in blocks:
-        x = jax.nn.silu(block(x))
+    for i, blocks in enumerate(self.part1):
+      with jax.profiler.TraceAnnotation(f"unet_up{i}"):
+        stack.append(x)
+        for block in blocks:
+          x = jax.nn.silu(block(x))
 
-    for blocks, feats in zip(self.part2, reversed(stack)):
-      for block in blocks:
-        x = jax.nn.silu(block(x))
-      x += feats
+    for i, (blocks, feats) in enumerate(zip(self.part2, reversed(stack))):
+      with jax.profiler.TraceAnnotation(f"unet_down{i}"):
+        for block in blocks:
+          x = jax.nn.silu(block(x))
+        x += feats
 
     return x

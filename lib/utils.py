@@ -41,7 +41,6 @@ def prep(batch, key=None, input_types=None):
   if input_types is None:
     input_types = (
       augmax.InputType.IMAGE,
-      augmax.InputType.DENSE,
       augmax.InputType.CONTOUR,
     )
   chain = augmax.Chain(*ops, input_types=input_types)
@@ -51,17 +50,8 @@ def prep(batch, key=None, input_types=None):
   transformation = jax.vmap(chain)
   outputs = list(transformation(subkeys, batch))
 
-  if do_augment:
-    B, *_ = outputs[1].shape
-    dem_mask = jax.random.bernoulli(key, 0.7, [B, 1, 1, 1])
-    outputs[1] = outputs[1] * dem_mask
-  outputs[1] = outputs[1] / 300
-  outputs = [
-    # Stack img and dem
-    jnp.concatenate([outputs[0], outputs[1]], axis=-1),
-    # Normalize contour
-    2 * (outputs[2] / outputs[0].shape[1]) - 1.0,
-  ]
+  # Normalize contour
+  outputs[1] = 2 * (outputs[1] / outputs[1].shape[1]) - 1.0
 
   return outputs
 

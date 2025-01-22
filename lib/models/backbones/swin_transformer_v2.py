@@ -695,9 +695,10 @@ class SwinTransformerV2(nnx.Module):
     x = self.pos_drop(x, dropout_rate=dropout_rate)
 
     for i, layer in enumerate(self.layers):
-      x = layer(x, dropout_rate=dropout_rate)
-      if i == 1:
-        skip = x
+      with jax.profiler.TraceAnnotation(f"swint_layer{i}"):
+        x = layer(x, dropout_rate=dropout_rate)
+        if i == 1:
+          skip = x
 
     x = self.norm(x)  # B L C
     x = rearrange(

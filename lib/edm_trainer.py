@@ -60,15 +60,17 @@ class EDMTrainer:
   def train_step(self, batch):
     self.state.model.train()
     self.trn_key, key = jax.random.split(self.trn_key)
-    data = (batch["image"], batch["dem"], batch["contour"])
-    return _train_step_jit(self.state, data, key, self.loss_fn, self.edm_params)
+    data = (batch["image"], batch["contour"])
+    return _train_step_jit(
+      self.state, data, batch["trace_class"], key, self.loss_fn, self.edm_params
+    )
 
   def test_step(self, batch):
     self.state.model.eval()
     self.val_key, key = jax.random.split(self.val_key)
-    data = (batch["image"], batch["dem"], batch["contour"])
+    data = (batch["image"], batch["contour"])
     img, contour = prep(data)
-    sampling_terms = self.sample(img)
+    sampling_terms = self.sample(img, batch["trace_class"])
 
     terms = {
       "contour": contour,
@@ -81,11 +83,13 @@ class EDMTrainer:
 
   # Adapted from https://github.com/yiyixuxu/denoising-diffusion-flax/blob/main/denoising_diffusion_flax/sampling.py
   # Original Author: YiYi Xu (https://github.com/yiyixuxu)
-  def sample(self, imagery, *, key=None):
+  def sample(self, imagery, trace_class=None, *, key=None):
     self.state.model.eval()
     if key is None:
       self.val_key, key = jax.random.split(self.val_key)
-    return _sample_jit(self.state, imagery, self.edm_params, key)
+    if trace_class is None:
+      trace_class = jnp.zeros([imagery.shape[0]], dtype=jnp.int32)
+    return _sample_jit(self.state, imagery, trace_class, self.edm_params, key)
 
   def save_state(self, path):
     keys, state = nnx.state(self.state, nnx.RngKey, ...)
@@ -106,7 +110,7 @@ class EDMTrainer:
 # Adapted from https://github.com/yiyixuxu/denoising-diffusion-flax/blob/main/denoising_diffusion_flax/train.py
 # Original Author: YiYi Xu (https://github.com/yiyixuxu)
 @nnx.jit
-def _train_step_jit(state, batch, key, loss_fn, edm_params):
+def _train_step_jit(state, batch, trace_class, key, loss_fn, edm_params):
   aug_key, t_key, t_key_u, noise_key, noise_key_u = jax.random.split(key, 5)
   img, contour = prep(batch, aug_key)
   B = img.shape[0]
@@ -130,7 +134,7 @@ def _train_step_jit(state, batch, key, loss_fn, edm_params):
   def get_loss(model):
     # Conditional Generation
     features = model.backbone(img)
-    predictor = partial(model.head, features=features)
+    predictor = partial(model.head, features=features, trace_class=trace_class)
     D_yn = jax.vmap(predictor)(contour + noise, sigma=sigma)
     loss_cond = jnp.mean(weight * ((D_yn - contour) ** 2))
     terms = {"contour": contour, "snake": D_yn}
@@ -138,7 +142,7 @@ def _train_step_jit(state, batch, key, loss_fn, edm_params):
     metrics["loss_cond"] = loss_cond
 
     # Unconditional Generation
-    predictor = partial(model.head, features=None)
+    predictor = partial(model.head, features=None, trace_class=trace_class)
     D_yn_u = jax.vmap(predictor)(contour + noise_u, sigma=sigma_u)
     loss_uncond = jnp.mean(weight_u * ((D_yn_u - contour) ** 2))
     metrics["loss_uncond"] = loss_uncond
@@ -152,7 +156,7 @@ def _train_step_jit(state, batch, key, loss_fn, edm_params):
 
 
 @nnx.jit
-def _sample_step(state, vertices, features, step_data, edm_params):
+def _sample_step(state, vertices, features, trace_class, step_data, edm_params):
   # Main sampling loop from EDM code, transferred into a scan-able jax function
   S_min = edm_params["S_min"]
   S_churn = edm_params["S_churn"]
@@ -171,12 +175,16 @@ def _sample_step(state, vertices, features, step_data, edm_params):
   )
 
   # Euler step.
-  denoised = state.model.head(x_hat, features=features, sigma=t_cur)
+  denoised = state.model.head(
+    x_hat, features=features, trace_class=trace_class, sigma=t_cur
+  )
   d_cur = (x_hat - denoised) / t_hat
   x_next = x_hat + (t_next - t_hat) * d_cur
 
   # 2nd order correction (without branching in python, to remain scan-able)
-  denoised = state.model.head(x_next, features=features, sigma=t_next)
+  denoised = state.model.head(
+    x_next, features=features, trace_class=trace_class, sigma=t_next
+  )
   d_prime = (x_next - denoised) / t_next
   x_next = jnp.where(
     do_2nd, x_hat + (t_next - t_hat) * (0.5 * d_cur + 0.5 * d_prime), x_next
@@ -185,7 +193,7 @@ def _sample_step(state, vertices, features, step_data, edm_params):
 
 
 @nnx.jit
-def _sample_jit(state, imagery, edm_params, key):
+def _sample_jit(state, imagery, trace_class, edm_params, key):
   B, *_ = imagery.shape
   # Extract config:
   sigma_max = edm_params["sigma_max"]
@@ -207,7 +215,7 @@ def _sample_jit(state, imagery, edm_params, key):
   features = jax.jit(state.model.backbone)(imagery)
 
   def scan_step(x, key_ts_do_2nd):
-    return _sample_step(state, x, features, key_ts_do_2nd, edm_params)
+    return _sample_step(state, x, features, trace_class, key_ts_do_2nd, edm_params)
 
   t_cur = t_steps[:-1]
   t_next = t_steps[1:]
