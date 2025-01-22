@@ -69,9 +69,14 @@ class SnakeHead(nnx.Module):
 
     # 3 types of traces
     self.class_emb = nnx.Param(jax.random.normal(rngs(), (3, C)))
-    self.cond_attn = CrossAttentionConditioning(512, 8, rngs=rngs)
-    self.cond_proj = nnx.Linear(512, C, rngs=rngs)
-    self.local_cond_proj = nnx.Linear(128, C, rngs=rngs)
+    self.conditioning_attns = [
+      CrossAttentionConditioning(128, 2, rngs=rngs),
+      CrossAttentionConditioning(512, 16, rngs=rngs),
+    ]
+    self.conditioning_projs = [
+      nnx.Linear(128, C, rngs=rngs),
+      nnx.Linear(512, C, rngs=rngs),
+    ]
 
   def __call__(self, vertices, features, sigma, trace_class, *, dropout_rate=0.0):
     sigma = jnp.log(sigma)  # Back to log scale for sigma
@@ -80,12 +85,12 @@ class SnakeHead(nnx.Module):
       class_emb = self.class_emb.value[trace_class]
       class_emb = rearrange(class_emb, "B C -> B 1 C")
       x = self.init_coords(vertices) + class_emb
-      if features:
-        f_local, f_global = features
-        sample = jax.vmap(snake_utils.sample_at_vertices, [0, 0])
-        x += self.cond_proj(sample(vertices, f_global))
-        x += self.local_cond_proj(sample(vertices, f_local))
-
+      if features is None:
+        features = []
+      for feature_map, cond, proj in zip(
+        features, self.conditioning_attns, self.conditioning_projs
+      ):
+        x += proj(cond(vertices, feature_map))
     with jax.profiler.TraceAnnotation("snake_head"):
       x = jax.nn.silu(x)
       x = self.model(x)

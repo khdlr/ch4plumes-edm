@@ -8,7 +8,7 @@ def normalize(batch):
   # Drop elevation data (if any)
   batch["dem"] = tf.zeros_like(batch["image"][..., :1])
   if "trace_class" not in batch:
-    batch["trace_class"] = tf.zeros([batch["image"].shape[0]], dtype=tf.int32)
+    batch["trace_class"] = tf.cast(batch["dem"][..., 0, 0, 0], tf.int32)
   return batch
 
 
