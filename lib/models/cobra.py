@@ -7,7 +7,6 @@ from einops import rearrange, repeat
 from . import backbones
 from . import nnutils as nn
 from . import snake_utils
-from .transformer import Transformer
 from .unet1d import UNet1D
 
 
@@ -51,7 +50,7 @@ class SnakeHead(nnx.Module):
 
     C = d_hidden
 
-    self.init_coords = nnx.Conv(2, C, [1], strides=1, rngs=rngs)
+    self.init_coords = nnx.Conv(2, C, [1], strides=1, rngs=rngs, use_bias=False)
 
     # self.model = Transformer(d_hidden, blocks, rngs=rngs)
     self.model = UNet1D(d_hidden, rngs=rngs)
