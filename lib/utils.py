@@ -51,7 +51,7 @@ def prep(batch, key=None, input_types=None):
   outputs = list(transformation(subkeys, batch))
 
   # Normalize contour
-  outputs[1] = 2 * (outputs[1] / outputs[1].shape[1]) - 1.0
+  outputs[1] = 2 * (outputs[1] / outputs[0].shape[1]) - 1.0
 
   return outputs
 
