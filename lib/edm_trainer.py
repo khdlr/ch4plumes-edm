@@ -6,7 +6,7 @@ import orbax.checkpoint as ocp
 from flax import nnx
 from flax.nnx import traversals
 from functools import partial
-from einops import repeat
+from einops import repeat, rearrange
 from pathlib import Path
 
 from . import losses
@@ -16,6 +16,19 @@ from .models.snake_utils import random_bezier
 from .utils import prep
 
 num_steps = 18
+
+
+def normal(key, shape):
+  *B, T, C = shape
+  assert T == 128
+  assert C == 2
+  mean = jnp.zeros([128])
+  BW = 64
+  r = jnp.arange(0, 128).reshape(-1, 1)
+  D = jnp.minimum(jnp.abs(r - r.T), BW) / BW * jnp.pi
+  cov = 0.5 + 0.5 * jnp.cos(D)
+  res = jax.random.multivariate_normal(key, mean, cov, shape=(*B, 2), method="svd")
+  return rearrange(res, "... C T -> ... T C")
 
 
 class EDMTrainer:
@@ -123,13 +136,13 @@ def _train_step_jit(state, batch, trace_class, key, loss_fn, edm_params):
   weight = (sigma**2 + edm_params["sigma_data"] ** 2) / (
     sigma * edm_params["sigma_data"]
   ) ** 2
-  noise = jax.random.normal(noise_key, contour.shape) * sigma
+  noise = normal(noise_key, contour.shape) * sigma
 
   sigma_u = jnp.exp(rnd_normal_u * edm_params["P_std"] + edm_params["P_mean"])
   weight_u = (sigma_u**2 + edm_params["sigma_data"] ** 2) / (
     sigma_u * edm_params["sigma_data"]
   ) ** 2
-  noise_u = jax.random.normal(noise_key_u, contour.shape) * sigma_u
+  noise_u = normal(noise_key_u, contour.shape) * sigma_u
 
   def get_loss(model):
     # Conditional Generation
@@ -170,9 +183,7 @@ def _sample_step(state, vertices, features, trace_class, step_data, edm_params):
     S_min <= t_cur, jnp.minimum(S_churn / num_steps, jnp.sqrt(2) - 1.0), 0.0
   )
   t_hat = t_cur + gamma * t_cur
-  x_hat = x_cur + jnp.sqrt(t_hat**2 - t_cur**2) * S_noise * jax.random.normal(
-    key, x_cur.shape
-  )
+  x_hat = x_cur + jnp.sqrt(t_hat**2 - t_cur**2) * S_noise * normal(key, x_cur.shape)
 
   # Euler step.
   denoised = state.model.head(
@@ -209,7 +220,7 @@ def _sample_jit(state, imagery, trace_class, edm_params, key):
   t_steps = repeat(t_steps, "T -> T B 1 1", B=B)
   # Main sampling loop.
   init_key, sample_key = jax.random.split(key)
-  x_init = jax.random.normal(init_key, [B, 128, 2])
+  x_init = normal(init_key, [B, 128, 2])
 
   sample_keys = jax.random.split(sample_key, num_steps)
   features = jax.jit(state.model.backbone)(imagery)
