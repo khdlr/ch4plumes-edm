@@ -8,6 +8,7 @@ from . import backbones
 from . import nnutils as nn
 from . import snake_utils
 from .unet1d import UNet1D
+from .convnext_head import ConvNeXt_T_Head
 
 
 class COBRA(nnx.Module):
@@ -22,7 +23,7 @@ class COBRA(nnx.Module):
     self.model_dim = config.model_dim
     self.iterations = config.iterations
     self.vertices = config.vertices
-    self.head = SnakeHead(self.model_dim, rngs=rngs)
+    self.head = SnakeHead(rngs=rngs)
     self.dropout = nn.ChannelDropout(rngs=rngs)
     self.rngs = rngs
 
@@ -53,7 +54,7 @@ class SnakeHead(nnx.Module):
     self.init_coords = nnx.Conv(2, C, [1], strides=1, rngs=rngs, use_bias=False)
 
     # self.model = Transformer(d_hidden, blocks, rngs=rngs)
-    self.model = UNet1D(d_hidden, rngs=rngs)
+    self.model = ConvNeXt_T_Head(d_hidden, rngs=rngs)
 
     # Initialize offset predictor with 0 -> default to no change
     self.mk_offset = nnx.ConvTranspose(
@@ -68,9 +69,9 @@ class SnakeHead(nnx.Module):
 
     # 3 types of traces
     self.class_emb = nnx.Param(jnp.zeros([3, C]))
-    self.cond_attn = CrossAttentionConditioning(512, 8, rngs=rngs)
-    self.cond_proj = nnx.Linear(512, C, rngs=rngs)
-    self.local_cond_proj = nnx.Linear(128, C, rngs=rngs)
+    self.cond_attn = CrossAttentionConditioning(768, 8, rngs=rngs)
+    self.cond_proj = nnx.Linear(768, C, rngs=rngs)
+    self.local_cond_proj = nnx.Linear(192, C, rngs=rngs)
 
   def __call__(self, vertices, features, sigma, trace_class, *, dropout_rate=0.0):
     sigma = jnp.log(sigma)  # Back to log scale for sigma
