@@ -68,8 +68,8 @@ class ConvNeXtHead(nnx.Module):
   def __call__(self, x):
     stack = []
     for i in range(3):
-      x = self.down_layers[i](x)
       x = self.down_stages[i](x)
+      x = self.down_layers[i](x)
       stack.append(x)
     x = self.bottleneck(x)
     for i in reversed(range(3)):
