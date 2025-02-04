@@ -27,7 +27,7 @@ class COBRA(nnx.Module):
     self.dropout = nn.ChannelDropout(rngs=rngs)
     self.rngs = rngs
 
-  def __call__(self, imagery, sigma, trace_class, dropout_rate=0.0):
+  def __call__(self, imagery, sigma, dropout_rate=0.0):
     feature_maps = self.backbone(imagery, dropout_rate=dropout_rate)
 
     init_keys = jax.random.split(self.rngs(), imagery.shape[0])
@@ -37,48 +37,38 @@ class COBRA(nnx.Module):
 
     for _ in range(self.iterations):
       vertices = jax.lax.stop_gradient(vertices)
-      vertices = vertices + self.head(
-        vertices, feature_maps, sigma, trace_class=trace_class
-      )
+      vertices = vertices + self.head(vertices, feature_maps, sigma)
       steps.append(vertices)
 
     return {"snake_steps": steps, "snake": vertices}
 
 
 class SnakeHead(nnx.Module):
-  def __init__(self, d_hidden, *, rngs: nnx.Rngs):
+  def __init__(self, *, rngs: nnx.Rngs):
     super().__init__()
 
-    C = d_hidden
+    self.model = ConvNeXt_T_Head(rngs=rngs)
+    C = self.model.get_dim()
 
-    self.init_coords = nnx.Conv(2, C, [1], strides=1, rngs=rngs, use_bias=False)
-
-    # self.model = Transformer(d_hidden, blocks, rngs=rngs)
-    self.model = ConvNeXt_T_Head(d_hidden, rngs=rngs)
-
+    self.init_coords = nnx.Conv(2, C, [1], rngs=rngs)
     # Initialize offset predictor with 0 -> default to no change
-    self.mk_offset = nnx.ConvTranspose(
+    self.mk_offset = nnx.Conv(
       C,
       2,
       [1],
-      strides=1,
       use_bias=False,
       kernel_init=nnx.initializers.zeros,
       rngs=rngs,
     )
 
-    # 3 types of traces
-    self.class_emb = nnx.Param(jnp.zeros([3, C]))
     self.cond_attn = CrossAttentionConditioning(768, 8, rngs=rngs)
     self.cond_proj = nnx.Linear(768, C, rngs=rngs)
     self.local_cond_proj = nnx.Linear(192, C, rngs=rngs)
 
-  def __call__(self, vertices, features, sigma, trace_class, *, dropout_rate=0.0):
+  def __call__(self, vertices, features, sigma, *, dropout_rate=0.0):
     sigma = jnp.log(sigma)  # Back to log scale for sigma
     # Start with coord features
-    class_emb = self.class_emb.value[trace_class]
-    class_emb = rearrange(class_emb, "B C -> B 1 C")
-    x = self.init_coords(vertices) + class_emb
+    x = self.init_coords(vertices)
 
     if features:
       f_local, f_global = features
