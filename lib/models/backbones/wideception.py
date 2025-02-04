@@ -22,20 +22,20 @@ class WideCeption(nnx.Module):
     self.middle = [
       XceptionBlock(256, [256], skip_type="sum", strides=1, rngs=rngs) for _ in range(4)
     ]
-    self.block4 = XceptionBlock(256, [512], strides=2, rngs=rngs)
+    self.block4 = XceptionBlock(256, [384], strides=2, rngs=rngs)
     self.block5 = XceptionBlock(
-      512, [512], strides=1, kernel_dilation=(1, 2, 4), rngs=rngs
+      384, [384], strides=1, kernel_dilation=(1, 2, 4), rngs=rngs
     )
 
     self.aspp = [
-      BDBlock(512, 256, rngs=rngs),
-      nn.ConvBNAct(512, 256, (1, 1), act="elu", rngs=rngs),
+      BDBlock(384, 128, rngs=rngs),
+      nn.ConvBNAct(384, 128, (1, 1), act="elu", rngs=rngs),
     ] + [
-      nn.SepConvBN(512, 256, (3, 3), kernel_dilation=r, rngs=rngs) for r in range(1, 6)
+      nn.SepConvBN(384, 128, (3, 3), kernel_dilation=r, rngs=rngs) for r in range(1, 6)
     ]
 
-    self.final = nn.ConvBNAct(256 * 7, 512, (1, 1), act="elu", rngs=rngs)
-    self.skip_final = nn.ConvBNAct(128, 64, (1, 1), act="elu", rngs=rngs)
+    self.final = nn.ConvBNAct(128 * 7, 512, (1, 1), act="elu", rngs=rngs)
+    self.skip_final = nn.ConvBNAct(128, 128, (1, 1), act="elu", rngs=rngs)
     self.dropout = nn.ChannelDropout(rngs=rngs)
 
   def __call__(self, x, dropout_rate=0.0):
@@ -96,7 +96,7 @@ class XceptionBlock(nnx.Module):
       nn.SepConvBN(
         c_current,
         depth_list[0],
-        kernel_size=(7, 7),
+        kernel_size=(5, 5),
         strides=strides,
         kernel_dilation=kernel_dilation[0],
         rngs=rngs,
