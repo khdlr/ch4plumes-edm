@@ -82,8 +82,12 @@ class ConvNeXtHead(nnx.Module):
     return self.dims[0]
 
 
-ConvNeXt_T_Head = partial(ConvNeXtHead, depths=[2, 2, 2, 4], dims=[96, 192, 384, 768])
-ConvNeXt_S_Head = partial(ConvNeXtHead, depths=[2, 2, 4, 8], dims=[96, 192, 384, 768])
-# ConvNeXt_B = partial(ConvNeXt, depths=[3, 3, 27, 3], dims=[128, 256, 512, 1024])
-# ConvNeXt_L = partial(ConvNeXt, depths=[3, 3, 27, 3], dims=[192, 384, 768, 1536])
-# ConvNeXt_XL = partial(ConvNeXt, depths=[3, 3, 27, 3], dims=[256, 512, 1024, 2048])
+ConvNeXt_T_Head = partial(
+  ConvNeXtHead, depths=[1, 1, 1, 2], dims=[256, 512, 1024, 2048]
+)
+ConvNeXt_S_Head = partial(
+  ConvNeXtHead, depths=[1, 1, 2, 4], dims=[256, 512, 1024, 2048]
+)
+ConvNeXt_B_Head = partial(
+  ConvNeXtHead, depths=[1, 2, 2, 4], dims=[384, 768, 1024, 1024]
+)

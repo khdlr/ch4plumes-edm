@@ -4,11 +4,8 @@ from functools import partial
 from flax import nnx
 from einops import rearrange, repeat
 
-from . import backbones
+from . import backbones, heads, snake_utils
 from . import nnutils as nn
-from . import snake_utils
-from .unet1d import UNet1D
-from .convnext_head import ConvNeXt_T_Head
 
 
 class COBRA(nnx.Module):
@@ -20,34 +17,22 @@ class COBRA(nnx.Module):
   ):
     super().__init__()
     self.backbone = getattr(backbones, config.backbone)(c_in=3, rngs=rngs)
-    self.model_dim = config.model_dim
-    self.iterations = config.iterations
     self.vertices = config.vertices
-    self.head = SnakeHead(rngs=rngs)
+    head_model = getattr(heads, config.head)
+    self.head = SnakeHead(
+      feature_dims=self.backbone.feature_dims(),
+      head_model=head_model,
+      rngs=rngs,
+    )
     self.dropout = nn.ChannelDropout(rngs=rngs)
     self.rngs = rngs
 
-  def __call__(self, imagery, sigma, dropout_rate=0.0):
-    feature_maps = self.backbone(imagery, dropout_rate=dropout_rate)
-
-    init_keys = jax.random.split(self.rngs(), imagery.shape[0])
-    init_fn = partial(snake_utils.random_bezier, vertices=self.vertices)
-    vertices = jax.vmap(init_fn)(init_keys)
-    steps = [vertices]
-
-    for _ in range(self.iterations):
-      vertices = jax.lax.stop_gradient(vertices)
-      vertices = vertices + self.head(vertices, feature_maps, sigma)
-      steps.append(vertices)
-
-    return {"snake_steps": steps, "snake": vertices}
-
 
 class SnakeHead(nnx.Module):
-  def __init__(self, *, rngs: nnx.Rngs):
+  def __init__(self, feature_dims, head_model, *, rngs: nnx.Rngs):
     super().__init__()
 
-    self.model = ConvNeXt_T_Head(rngs=rngs)
+    self.model = head_model(rngs=rngs)
     C = self.model.get_dim()
 
     self.init_coords = nnx.Conv(2, C, [1], rngs=rngs)
@@ -61,9 +46,9 @@ class SnakeHead(nnx.Module):
       rngs=rngs,
     )
 
-    self.cond_attn = CrossAttentionConditioning(768, 8, rngs=rngs)
-    self.cond_proj = nnx.Linear(768, C, rngs=rngs)
-    self.local_cond_proj = nnx.Linear(192, C, rngs=rngs)
+    self.local_cond_proj = nnx.Linear(feature_dims[0], C, rngs=rngs)
+    self.cond_attn = CrossAttentionConditioning(feature_dims[1], 8, rngs=rngs)
+    self.cond_proj = nnx.Linear(feature_dims[1], C, rngs=rngs)
 
   def __call__(self, vertices, features, sigma, *, dropout_rate=0.0):
     sigma = jnp.log(sigma)  # Back to log scale for sigma

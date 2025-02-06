@@ -3,7 +3,6 @@ import jax
 import jax.numpy as jnp
 from flax import nnx
 from einops import rearrange
-from ..config_mod import Config
 
 
 def nd_dense_init(scale, mode, distribution):

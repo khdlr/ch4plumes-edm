@@ -61,6 +61,9 @@ class WideCeption(nnx.Module):
     skip3 = dropout(self.skip_final(skip3))
     return [skip3, x]
 
+  def feature_dims(self):
+    return [128, 512]
+
 
 class BDBlock(nnx.Module):
   def __init__(self, c_in, c_out, *, rngs: nnx.Rngs):
