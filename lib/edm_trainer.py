@@ -43,7 +43,9 @@ class EDMTrainer:
       peak_value=1e-5,
       warmup_steps=EPOCH,
     )
-    opt = optax.chain(optax.clip(1.0), optax.adam(lr_schedule, b1=0.9, b2=0.99))
+    opt = optax.chain(
+      optax.clip(1.0), optax.adamw(lr_schedule, b1=0.9, b2=0.99, weight_decay=1e-4)
+    )
     self.state = nnx.Optimizer(model, opt)
 
     self.loss_fn = getattr(losses, config.loss_function)()
@@ -217,14 +219,16 @@ def _sample_jit(state, imagery, edm_params, key):
   sample_keys = jax.random.split(sample_key, num_steps)
   features = jax.jit(state.model.backbone)(imagery)
 
-  def scan_step(x, key_ts_do_2nd):
+  @nnx.scan(in_axes=(nnx.Carry, 0), out_axes=(nnx.Carry, 0))
+  def scan_process(x, key_ts_do_2nd):
     return _sample_step(state, x, features, key_ts_do_2nd, edm_params)
 
   t_cur = t_steps[:-1]
   t_next = t_steps[1:]
   do_2nd = t_next != t_next[-1:, :]
   step_info = (sample_keys, t_cur, t_next, do_2nd)
-  _, steps = jax.lax.scan(scan_step, x_init, step_info)
+  # _, steps = jax.lax.scan(scan_step, x_init, step_info)
+  _, steps = scan_process(x_init, step_info)
 
   # sample step
   return {"prediction": steps[-1], "steps": steps}

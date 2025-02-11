@@ -1,9 +1,11 @@
 import jax
 from flax import nnx
+from functools import partial
 
 
 class UNet1D(nnx.Module):
   def __init__(self, C, *, rngs: nnx.Rngs):
+    self.dim = C
     self.part1 = [
       (
         nnx.Conv(1 * C, 1 * C, [3], strides=1, rngs=rngs),
@@ -62,3 +64,12 @@ class UNet1D(nnx.Module):
         x += feats
 
     return x
+
+  def get_dim(self):
+    return self.dim
+
+
+UNet1D_T = partial(UNet1D, 256)
+UNet1D_S = partial(UNet1D, 384)
+UNet1D_B = partial(UNet1D, 512)
+UNet1D_L = partial(UNet1D, 768)

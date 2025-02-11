@@ -51,7 +51,7 @@ def main() -> None:
     if epoch % val_frequency != 0:
       continue
 
-    trainer.save_state((run_dir / f"{epoch}.ckpt").absolute())
+    # trainer.save_state((run_dir / f"{epoch}.ckpt").absolute())
     trainer.val_key = jax.random.PRNGKey(0)  # Re-seed val key
     B, H, _, _ = batch["image"].shape
     predictions = []
