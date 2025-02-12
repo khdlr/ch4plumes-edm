@@ -19,29 +19,15 @@ def prep(batch, key=None, input_types=None):
   ops = []
   if do_augment:
     ops += [
-      augmax.HorizontalFlip(),
-      augmax.VerticalFlip(),
-      augmax.Rotate90(),
-      augmax.Rotate(15),
       # augmax.Warp(coarseness=64, strength=8),
       # augmax.Warp(coarseness=32, strength=4),
-    ]
-  ops += [augmax.ByteToFloat()]
-  if do_augment:
-    ops += [
-      # augmax.Solarization(p=0.1),
-      augmax.ColorJitter(),
-      # augmax.RandomChannelGamma(p=0.5, range=(0.5, 2.0)),
-      augmax.RandomBrightness(p=0.5),
-      augmax.RandomContrast(p=0.5),
-      augmax.RandomGrayscale(p=0.2),
-      augmax.GaussianBlur(sigma=2),
     ]
 
   if input_types is None:
     input_types = (
-      augmax.InputType.IMAGE,
-      augmax.InputType.CONTOUR,
+      augmax.InputType.DENSE,
+      augmax.InputType.DENSE,
+      augmax.InputType.DENSE,
     )
   chain = augmax.Chain(*ops, input_types=input_types)
   if not do_augment:

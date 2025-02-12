@@ -1,20 +1,15 @@
 from pathlib import Path
 
-from functools import partial
 from itertools import islice
-from data_loading import get_loader
 import yaml
 
 import jax
-import jax.numpy as jnp
-from flax import nnx
 import numpy as np
 from collections import defaultdict
 import wandb
 from tqdm import tqdm
 
-from lib import logging, config, Trainer, EDMTrainer
-from lib.models.snake_utils import random_bezier
+from lib import logging, config, EDMTrainer, get_loader
 
 jax.config.update("jax_numpy_rank_promotion", "raise")
 
@@ -23,11 +18,8 @@ def main() -> None:
   run_name = config.name or None
 
   trainer = EDMTrainer(jax.random.PRNGKey(config.seed))
-  train_loader = get_loader(config.batch_size, "train")
-  val_loader = get_loader(4, "val")
-
-  project = config.dataset.replace("_", " ").title()
-  wandb.init(project=f"DiffCobra {project}", config=config, name=run_name)
+  data_loader = get_loader(config.batch_size, "train")
+  wandb.init(project="Plumes EDM", config=config, name=run_name)
 
   assert wandb.run is not None
   config.wandb_id = wandb.run.id
@@ -36,12 +28,12 @@ def main() -> None:
   with open(run_dir / "config.yml", "w") as f:
     f.write(yaml.dump(config, default_flow_style=False))
 
-  val_frequency = 5 if config.dataset == "zakynthos" else 1
+  val_frequency = 10
 
   for epoch in range(1, 501):
     wandb.log({"epoch": epoch}, step=epoch)
     trn_metrics = defaultdict(list)
-    for batch in tqdm(train_loader, desc=f"Trn {epoch:3d}", ncols=80):
+    for batch in tqdm(data_loader, desc=f"Trn {epoch:3d}", ncols=80):
       metrics = trainer.train_step(batch)
       for k, v in metrics.items():
         trn_metrics[k].append(v)
@@ -51,7 +43,8 @@ def main() -> None:
     if epoch % val_frequency != 0:
       continue
 
-    # trainer.save_state((run_dir / f"{epoch}.ckpt").absolute())
+    trainer.save_state((run_dir / f"{epoch}.ckpt").absolute())
+
     trainer.val_key = jax.random.PRNGKey(0)  # Re-seed val key
     B, H, _, _ = batch["image"].shape
     predictions = []
@@ -62,7 +55,6 @@ def main() -> None:
       predictions.append(out)
 
     for i in range(B):
-      # jax.tree.map(lambda x: x[i], predictions)
       out = {
         k: np.stack(jax.tree.map(lambda x: x[i], [p[k] for p in predictions]))
         for k in predictions[0]

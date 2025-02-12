@@ -5,22 +5,13 @@ from pyrallis.argparsing import parse
 
 
 @dataclass
-class ModelConfig:
-  backbone: str
-  head: str
-  vertices: int
-
-
-@dataclass
 class Config:
   """Training config for Machine Learning"""
 
   dataset: str
-  model: ModelConfig
+  model_type: str
   loss_function: str
-  loss_stepwise: bool
   batch_size: int
-  samples_per_image: int
   seed: int
   name: Optional[str] = None
   resume_from: Optional[str] = None

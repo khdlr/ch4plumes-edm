@@ -1,13 +1,8 @@
 ### Model Specification
-model:
-  backbone: WideCeption
-  head: UNet1D_S
-  vertices: 128
+model_type: UNet_S
 ### Training configuration
-dataset: synthetic_contours
+dataset: plumes
 seed: 27
-loss_function: Huber
-loss_stepwise: true
 ### Data args
 batch_size: 16
-samples_per_image: 2
+loss_function: Huber
