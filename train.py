@@ -28,7 +28,7 @@ def main() -> None:
   with open(run_dir / "config.yml", "w") as f:
     f.write(yaml.dump(config, default_flow_style=False))
 
-  val_frequency = 10
+  val_frequency = 1
 
   for epoch in range(1, 501):
     wandb.log({"epoch": epoch}, step=epoch)
@@ -45,43 +45,12 @@ def main() -> None:
 
     trainer.save_state((run_dir / f"{epoch}.ckpt").absolute())
 
-    trainer.val_key = jax.random.PRNGKey(0)  # Re-seed val key
-    B, H, _, _ = batch["image"].shape
-    predictions = []
-    for _ in range(5):
-      out, metrics = trainer.test_step(batch)
-      out = jax.tree.map(lambda x: (x + 1) * (H / 2), out)
-      out.update(batch)
-      predictions.append(out)
-
+    out = trainer.sample(key=jax.random.key(0))
+    steps = out["steps"]
+    B = steps[0].shape[0]
     for i in range(B):
-      out = {
-        k: np.stack(jax.tree.map(lambda x: x[i], [p[k] for p in predictions]))
-        for k in predictions[0]
-      }
-      logging.log_anim_multi(out, f"TrnAnim/{i}", epoch)
-
-    val_metrics = defaultdict(list)
-    for i, batch in enumerate(
-      tqdm(islice(val_loader, 24), desc=f"Val {epoch:3d}", ncols=80, total=8)
-    ):
-      B, H, _, _ = batch["image"].shape
-      predictions = []
-      for _ in range(5):
-        out, metrics = trainer.test_step(batch)
-        out = jax.tree.map(lambda x: (x + 1) * (H / 2), out)
-        out.update(batch)
-        predictions.append(jax.tree.map(lambda x: x[0], out))
-        for m in metrics:
-          val_metrics[m].append(metrics[m])
-      out = {k: np.stack([p[k] for p in predictions]) for k in predictions[0]}
-      try:
-        filename = batch["filename"][0].decode("utf8").removesuffix(".tif")
-        name = f"{batch['year'][0]}_{filename}"
-      except:
-        name = batch["filename"][0].decode("utf8").removesuffix(".tif")
-      logging.log_anim_multi(out, f"Animated/{name}", epoch)
-    logging.log_metrics(val_metrics, "val", epoch)
+      sample_steps = [steps[t][i] for t in range(18)]
+      logging.log_steps(sample_steps, f"{i:02d}", epoch, run_dir)
 
 
 if __name__ == "__main__":

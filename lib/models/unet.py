@@ -58,9 +58,7 @@ class UNet(nnx.Module):
     print("TODO: UNet is not using sigma yet...")
 
     x = self.init(x)
-    print("x_raw", x.shape)
     x = jnp.pad(x, [(0, 0), (5, 5), (4, 4), (0, 0)])
-    print("x_padded", x.shape)
     stack = []
     for blocks in self.part1:
       stack.append(x)

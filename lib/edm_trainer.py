@@ -60,29 +60,16 @@ class EDMTrainer:
     data = (batch["CH4PLUME"], batch["U10"], batch["V10"])
     return _train_step_jit(self.state, data, key, self.loss_fn, self.edm_params)
 
-  def test_step(self, batch):
-    self.state.model.eval()
-    self.val_key, key = jax.random.split(self.val_key)
-    data = (batch["CH4PLUME"], batch["U10"], batch["V10"])
-    img, contour = prep(data)
-    sampling_terms = self.sample(img)
-
-    terms = {
-      "contour": contour,
-      "snake": sampling_terms["prediction"],
-      "snake_steps": list(sampling_terms["steps"]),
-    }
-    loss, metrics = jax.jit(self.loss_fn)(terms)
-    metrics["loss"] = loss
-    return terms, metrics
-
   # Adapted from https://github.com/yiyixuxu/denoising-diffusion-flax/blob/main/denoising_diffusion_flax/sampling.py
   # Original Author: YiYi Xu (https://github.com/yiyixuxu)
-  def sample(self, imagery, *, key=None):
+  def sample(self, num=None, *, key=None):
     self.state.model.eval()
     if key is None:
       self.val_key, key = jax.random.split(self.val_key)
-    return _sample_jit(self.state, imagery, self.edm_params, key)
+    if num is None:
+      num = config.batch_size
+    features = jnp.zeros([num])
+    return _sample_jit(self.state, self.edm_params, key, features)
 
   def save_state(self, path):
     keys, state = nnx.state(self.state, nnx.RngKey, ...)
@@ -125,14 +112,14 @@ def _train_step_jit(state, batch, key, loss_fn, edm_params):
 
 
 @nnx.jit
-def _sample_step(state, vertices, features, step_data, edm_params):
+def _sample_step(state, x, step_data, edm_params):
   # Main sampling loop from EDM code, transferred into a scan-able jax function
   S_min = edm_params["S_min"]
   S_churn = edm_params["S_churn"]
   S_noise = edm_params["S_noise"]
 
   key, t_cur, t_next, do_2nd = step_data
-  x_cur = vertices
+  x_cur = x
 
   # Increase noise temporarily
   gamma = jnp.where(
@@ -144,12 +131,12 @@ def _sample_step(state, vertices, features, step_data, edm_params):
   )
 
   # Euler step.
-  denoised = state.model.head(x_hat, features=features, sigma=t_cur)
+  denoised = state.model(x_hat, sigma=t_cur)
   d_cur = (x_hat - denoised) / t_hat
   x_next = x_hat + (t_next - t_hat) * d_cur
 
   # 2nd order correction (without branching in python, to remain scan-able)
-  denoised = state.model.head(x_next, features=features, sigma=t_next)
+  denoised = state.model(x_next, sigma=t_next)
   d_prime = (x_next - denoised) / t_next
   x_next = jnp.where(
     do_2nd, x_hat + (t_next - t_hat) * (0.5 * d_cur + 0.5 * d_prime), x_next
@@ -158,8 +145,8 @@ def _sample_step(state, vertices, features, step_data, edm_params):
 
 
 @nnx.jit
-def _sample_jit(state, imagery, edm_params, key):
-  B, *_ = imagery.shape
+def _sample_jit(state, edm_params, key, features):
+  B, *_ = features.shape
   # Extract config:
   sigma_max = edm_params["sigma_max"]
   sigma_min = edm_params["sigma_min"]
@@ -171,16 +158,15 @@ def _sample_jit(state, imagery, edm_params, key):
     + step_indices / (num_steps - 1) * (sigma_min ** (1 / rho) - sigma_max ** (1 / rho))
   ) ** rho
   t_steps = jnp.concatenate([t_steps, jnp.zeros((1,))])  # t_N = 0
-  t_steps = repeat(t_steps, "T -> T B 1 1", B=B)
+  t_steps = repeat(t_steps, "T -> T B 1 1 1", B=B)
   # Main sampling loop.
   init_key, sample_key = jax.random.split(key)
-  x_init = normal(init_key, [B, 128, 2])
+  x_init = jax.random.normal(init_key, [B, 150, 120, 1])
 
   sample_keys = jax.random.split(sample_key, num_steps)
-  features = jax.jit(state.model.backbone)(imagery)
 
   def scan_step(x, key_ts_do_2nd):
-    return _sample_step(state, x, features, key_ts_do_2nd, edm_params)
+    return _sample_step(state, x, key_ts_do_2nd, edm_params)
 
   t_cur = t_steps[:-1]
   t_next = t_steps[1:]
