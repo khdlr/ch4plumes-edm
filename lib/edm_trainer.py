@@ -20,14 +20,8 @@ class EDMTrainer:
     model_rngs = nnx.Rngs(init_key)
     model = getattr(models, config.model_type)(in_dim=1, out_dim=1, rngs=model_rngs)
     model.train()
-    EPOCH = 1024 * 1024 // config.batch_size
-    lr_schedule = optax.warmup_constant_schedule(
-      init_value=1e-7,
-      peak_value=1e-5,
-      warmup_steps=EPOCH,
-    )
     opt = optax.chain(
-      optax.clip(1.0), optax.adamw(lr_schedule, b1=0.9, b2=0.99, weight_decay=1e-4)
+      optax.clip(1.0), optax.adamw(1e-4, b1=0.9, b2=0.99, weight_decay=1e-4)
     )
     self.state = nnx.Optimizer(model, opt)
 
