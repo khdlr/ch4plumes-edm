@@ -31,7 +31,11 @@ def log_steps(steps, tag, step, base_path):
   out_dir.mkdir(exist_ok=True, parents=True)
   imgs = [to_rgb(step) for step in steps]
   imgs[0].save(
-    out_dir / f"{tag}.gif", save_all=True, append_images=imgs[1:], duration=50, loop=1
+    out_dir / f"{tag}.gif",
+    save_all=True,
+    append_images=imgs[1:] + [imgs[-1]] * 10,
+    duration=100,
+    loop=0,
   )
   wandb.log(
     {
